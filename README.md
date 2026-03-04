@@ -1,6 +1,8 @@
 # ⚡ Win11-EsportsTweaks (CS2 Ultimate Optimizer)
 
-A professional-grade, open-source PowerShell optimization suite designed specifically for **Counter-Strike 2** and competitive gaming on **Windows 11 (24H2+ Ready)**. 
+![Win11-EsportsTweaks UI](assets/preview.svg)
+
+A professional-grade, open-source PowerShell optimization suite designed specifically for **Counter-Strike 2** and competitive gaming on **Windows 11 (24H2 Ready)**. 
 
 This script applies hundreds of "paid-tier" registry and system tweaks to maximize FPS, eliminate micro-stutters, and ensure the lowest possible input latency—all while remaining **FACEIT Safe** and keeping critical security features intact.
 
@@ -10,9 +12,13 @@ This script applies hundreds of "paid-tier" registry and system tweaks to maximi
 
 ### 🎮 **Performance & FPS**
 *   **Ultimate Power Plan**: Unlocks hidden "Ultimate Performance" schemes, forcing 100% CPU frequency and disabling core parking.
+*   **CPU Affinity & Core Isolation**: Automatically detects your CPU (Intel/AMD) and moves heavy background apps (Discord, Chrome, Spotify) to **Efficiency Cores** (or Core 0/1), reserving high-performance cores exclusively for CS2.
+*   **Vendor-Specific Profiles**: 
+    *   **AMD Ryzen**: Optimizes C-States, unhides power attributes, and detects **3D V-Cache** CPUs to prioritize the correct CCD.
+    *   **Intel Core**: Disables TSX (Transactional Synchronization Extensions) to prevent micro-stutters and aggressively unparks E-Cores.
 *   **CS2 Priority Tuning**: Automatically sets `cs2.exe` to **High CPU** and **I/O Priority** via Image File Execution Options (IFEO).
 *   **GPU Scheduling (HAGS)**: Enables Hardware-Accelerated GPU Scheduling for supported NVIDIA/AMD cards to reduce CPU overhead.
-*   **MPO Disable**: Disables Multi-Plane Overlay to fix flickering and stuttering in fullscreen games.
+*   **Global VRR & Flip Model**: Forces Variable Refresh Rate and "Flip Model Upgrade" globally in DirectX for smoother frame pacing in windowed/borderless modes.
 
 ### 🎯 **Input Latency & "1000Hz Feel"**
 *   **0.5ms Timer Resolution**: Forces the system timer to the highest precision (`GlobalTimerResolutionRequests`) for instant input processing.
@@ -27,8 +33,9 @@ This script applies hundreds of "paid-tier" registry and system tweaks to maximi
 
 ### 🧹 **Debloat & System Health**
 *   **Appx Removal**: Strips bloatware like Bing News, Solitaire, People Bar, and the new web-based Outlook.
-*   **Telemetry Killer**: Disables DiagTrack, WAP Push Service, and over 20+ scheduled telemetry tasks.
-*   **Deep Cleaning**: Disables Hibernation (`hiberfil.sys`) and Reserved Storage to reclaim ~10GB+ of SSD space.
+*   **Telemetry Killer**: Disables DiagTrack, WAP Push Service, and uses `Unregister-ScheduledTask` to completely remove tracking tasks.
+*   **Deep Cleaning**: Cleans Temp files, DNS Cache, and disables `SysMain` (Superfetch) to prevent disk usage spikes.
+*   **Print Spooler**: **ENABLED** by default to ensure printing functionality is preserved.
 *   **Browser Hardening**: Prevents Edge from pre-launching processes at startup (`StartupBoostEnabled = 0`).
 
 ## 🛡️ Safety First (FACEIT Safe)
@@ -55,10 +62,7 @@ iwr -useb https://raw.githubusercontent.com/xhowlzzz/Optimization/refs/heads/mai
     *   Check the **"Status"** bar to see VBS status and system specs.
 
 ### Command Line Mode
-For power users or deployments, run without the GUI:
-```powershell
-.\Win11-EsportsTweaks.ps1 -NoGui
-```
+The script now defaults to GUI mode. To run it silently or in automation, you can modify the script parameters if needed, but the GUI is the primary interface.
 
 ## ⚙️ Advanced Modules
 The script includes specialized modules that run automatically:
