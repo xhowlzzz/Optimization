@@ -157,13 +157,40 @@ function Invoke-InputLatencyReductions {
 function Invoke-GpuPreferenceEnforcement {
     [CmdletBinding()]
     param()
-    Write-Log -Message 'Enforcing High Performance GPU Preference for CS2...' -Level INFO
+    Write-Log -Message 'Enforcing GPU High Performance Preference for CS2...' -Level INFO
     try {
+        # 1. Global DirectX Tweaks (VRR & Flip Queue)
+        $dxUserPath = 'HKEY_CURRENT_USER\Software\Microsoft\DirectX\UserGpuPreferences'
+        Set-RegistryValueSafe -Path $dxUserPath -Name 'DirectXUserGlobalSettings' -Value 'SwapEffectUpgradeEnable=1;VariableRefreshRateEnable=1' -Type ([Microsoft.Win32.RegistryValueKind]::String) -Description 'Enable Global VRR and Flip Model'
+
+        # 2. Game Preference
         $cs2Path = "C:\Program Files (x86)\Steam\steamapps\common\Counter-Strike Global Offensive\game\bin\win64\cs2.exe"
-        if (-not (Test-Path $cs2Path)) {
-            # Try to find CS2 path via Registry or common paths
+        try {
+            # Dynamic Steam Path Detection
             $steamPath = Get-ItemProperty -Path 'HKCU:\Software\Valve\Steam' -Name 'SteamPath' -ErrorAction SilentlyContinue | Select-Object -ExpandProperty SteamPath
-            if ($steamPath) { $cs2Path = "$steamPath\steamapps\common\Counter-Strike Global Offensive\game\bin\win64\cs2.exe" }
+            if ($steamPath) {
+                $libFolders = Join-Path $steamPath "steamapps\libraryfolders.vdf"
+                if (Test-Path $libFolders) {
+                    $content = Get-Content $libFolders -Raw
+                    # Simple regex to find paths in VDF
+                    $matches = [regex]::Matches($content, '"path"\s+"(.*?)"')
+                    foreach ($match in $matches) {
+                        $libPath = $match.Groups[1].Value.Replace("\\", "\")
+                        $potentialPath = Join-Path $libPath "steamapps\common\Counter-Strike Global Offensive\game\bin\win64\cs2.exe"
+                        if (Test-Path $potentialPath) {
+                            $cs2Path = $potentialPath
+                            break
+                        }
+                    }
+                }
+                # Check default library if VDF parsing fails/misses
+                if (-not (Test-Path $cs2Path)) {
+                    $defaultLibPath = Join-Path $steamPath "steamapps\common\Counter-Strike Global Offensive\game\bin\win64\cs2.exe"
+                    if (Test-Path $defaultLibPath) { $cs2Path = $defaultLibPath }
+                }
+            }
+        } catch {
+            Write-Log -Message "Dynamic CS2 path detection failed: $($_.Exception.Message)" -Level WARN
         }
         if (Test-Path $cs2Path) {
             Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\Software\Microsoft\DirectX\UserGpuPreferences' -Name $cs2Path -Value 'GpuPreference=2;' -Type ([Microsoft.Win32.RegistryValueKind]::String) -Description 'Force High Performance GPU'
@@ -175,22 +202,7 @@ function Invoke-GpuPreferenceEnforcement {
         Write-Log -Message "Failed to set GPU preference: $($_.Exception.Message)" -Level WARN
     }
 }
-function Invoke-HitRegistrationTweaks {
-    [CmdletBinding()]
-    param()
-    Write-Log -Message 'Applying Premium Hit Registration and Network Stack Optimizations...' -Level INFO
-    try {
-        Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters' -Name 'MaxUserPort' -Value 65534 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Maximize available ephemeral ports'
-        Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters' -Name 'TcpTimedWaitDelay' -Value 30 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Reduce TCP wait delay for faster port reuse'
-        Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Psched' -Name 'NonBestEffortLimit' -Value 0 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Disable QoS bandwidth limit'
-        Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters' -Name 'IRPStackSize' -Value 32 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Increase IRP stack size for network performance'
-        Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters' -Name 'Size' -Value 3 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Optimize server service for high throughput'
-        Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management' -Name 'LargeSystemCache' -Value 1 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Enable large system cache'
-        Write-Log -Message 'Premium network stack refinements applied for optimal hit registration.' -Level SUCCESS
-    } catch {
-        Write-Log -Message "Failed to apply Hit Registration tweaks: $($_.Exception.Message)" -Level ERROR
-    }
-}
+
 function Invoke-AdvancedSystemResponsiveness {
     [CmdletBinding()]
     param()
@@ -206,7 +218,6 @@ function Invoke-AdvancedSystemResponsiveness {
         $mmcssPath = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\Games'
         Set-RegistryValueSafe -Path $mmcssPath -Name 'Priority' -Value 8 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Max process priority for games'
         Set-RegistryValueSafe -Path $mmcssPath -Name 'GPU Priority' -Value 18 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Max GPU priority for games'
-        Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\PriorityControl' -Name 'Win32PrioritySeparation' -Value 40 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Premium process scheduling for foreground games'
         Write-Log -Message 'Advanced responsiveness and latency tweaks applied successfully.' -Level SUCCESS
     } catch {
         Write-Log -Message "Failed to apply responsiveness tweaks: $($_.Exception.Message)" -Level ERROR
@@ -215,43 +226,225 @@ function Invoke-AdvancedSystemResponsiveness {
 function Invoke-MsiModeOptimization {
     [CmdletBinding()]
     param()
-    Write-Log -Message 'Detecting and Enabling MSI (Message Signaled Interrupts) Mode for GPU and NIC...' -Level INFO
+    Write-Log -Message 'Detecting and Enabling MSI (Message Signaled Interrupts) Mode...' -Level INFO
     try {
-        $gpuInfo = Get-CimInstance Win32_VideoController | Select-Object -First 1 PnPDeviceID
-        $nicInfo = Get-NetAdapter -ErrorAction SilentlyContinue | Where-Object { $_.Status -eq 'Up' -and $_.HardwareInterface -eq $true } | Select-Object -First 1 PnPDeviceID
-        $devices = @($gpuInfo, $nicInfo)
-        foreach ($device in $devices) {
-            if ($device -and $device.PnPDeviceID) {
-                $pnpId = $device.PnPDeviceID
-                $msiPath = "HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Enum\$pnpId\Device Parameters\Interrupt Management\MessageSignaledInterruptProperties"
-                Set-RegistryValueSafe -Path $msiPath -Name 'MSISupported' -Value 1 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description "Enable MSI mode for $pnpId"
+        # Target classes: Display, Network, USB, IDE/SCSI (Storage)
+        $targetClasses = @(
+            '{4d36e968-e325-11ce-bfc1-08002be10318}', # Display
+            '{4d36e972-e325-11ce-bfc1-08002be10318}', # Network
+            '{36fc9e60-c465-11cf-8056-444553540000}', # USB
+            '{4d36e96a-e325-11ce-bfc1-08002be10318}', # HDD/SSD
+            '{4d36e97b-e325-11ce-bfc1-08002be10318}'  # SCSIAdapter
+        )
+        
+        $pnpDevices = Get-PnpDevice -Status OK -PresentOnly
+        foreach ($dev in $pnpDevices) {
+            if ($targetClasses -contains $dev.ClassGuid) {
+                try {
+                    $regPath = "HKLM:\SYSTEM\CurrentControlSet\Enum\$($dev.InstanceId)\Device Parameters\Interrupt Management\MessageSignaledInterruptProperties"
+                    if (Test-Path $regPath) {
+                        # Check if MSI is supported but not enabled (Value 0 or missing)
+                        $currentVal = (Get-ItemProperty -Path $regPath -Name 'MSISupported' -ErrorAction SilentlyContinue).MSISupported
+                        if ($null -eq $currentVal -or $currentVal -ne 1) {
+                            Set-ItemProperty -Path $regPath -Name 'MSISupported' -Value 1 -Type DWord -Force -ErrorAction Stop
+                            Write-Log -Message "Enabled MSI Mode for: $($dev.FriendlyName)" -Level SUCCESS
+                        }
+                    }
+                } catch {}
             }
         }
-        Write-Log -Message 'MSI mode enabled for primary GPU and NIC.' -Level SUCCESS
+        Write-Log -Message 'MSI mode check completed for all high-performance devices.' -Level SUCCESS
     } catch {
-        Write-Log -Message "Failed to enable MSI mode: $($_.Exception.Message)" -Level ERROR
+        Write-Log -Message "Failed to enable MSI mode: $($_.Exception.Message)" -Level WARN
     }
 }
-function Invoke-AdvancedNicProfiles {
+function Invoke-UnifiedNetworkTweaks {
     [CmdletBinding()]
     param()
-    Write-Log -Message "Applying Advanced NIC and Network Profiles (Zero-Packet Delay)..." -Level INFO
+    Write-Log -Message "Applying Unified Network Optimization (Zero-Packet Delay, Jitter, QoS)..." -Level INFO
+    
+    # 1. Registry Tweaks (TCP/IP & Jitter)
     try {
-        $adapters = Get-NetAdapter -ErrorAction SilentlyContinue | Where-Object { $_.HardwareInterface -eq $true }
-        foreach ($adapter in $adapters) {
-            & Set-NetAdapterAdvancedProperty -Name $adapter.Name -DisplayName "Interrupt Moderation" -DisplayValue "Disabled" -ErrorAction SilentlyContinue
-            & Set-NetAdapterAdvancedProperty -Name $adapter.Name -DisplayName "Flow Control" -DisplayValue "Disabled" -ErrorAction SilentlyContinue
-            & Set-NetAdapterAdvancedProperty -Name $adapter.Name -DisplayName "Packet Coalescing" -DisplayValue "Disabled" -ErrorAction SilentlyContinue
-            & Set-NetAdapterAdvancedProperty -Name $adapter.Name -DisplayName "Receive Side Scaling" -DisplayValue "Enabled" -ErrorAction SilentlyContinue
-            & Set-NetAdapterAdvancedProperty -Name $adapter.Name -DisplayName "Jumbo Packet" -DisplayValue "Disabled" -ErrorAction SilentlyContinue
-        }
+        # TCP/IP Stack
         Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters' -Name 'TcpAckFrequency' -Value 1 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Send ACKs immediately'
         Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters' -Name 'TcpNoDelay' -Value 1 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Disable Nagle Algorithm'
         Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters' -Name 'TcpDelAckTicks' -Value 0 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Disable delayed ACK ticks'
-        Write-Log -Message 'Advanced NIC profiles and network stack optimized.' -Level SUCCESS
+        Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters' -Name 'MaxUserPort' -Value 65534 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Maximize available ephemeral ports'
+        Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters' -Name 'TcpTimedWaitDelay' -Value 30 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Reduce TCP wait delay'
+        Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters' -Name 'DefaultTTL' -Value 64 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Optimal TTL for gaming'
+        Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters' -Name 'TcpWindowSize' -Value 64240 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Optimize TCP window size'
+        Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters' -Name 'GlobalMaxTcpWindowSize' -Value 64240 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
+        
+        # Throttling & QoS
+        Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile' -Name 'NetworkThrottlingIndex' -Value 0xFFFFFFFF -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Disable network throttling'
+        Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Psched' -Name 'NonBestEffortLimit' -Value 0 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Disable QoS bandwidth limit'
+        
+        # LanmanServer
+        Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters' -Name 'IRPStackSize' -Value 32 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
+        Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters' -Name 'Size' -Value 3 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
     } catch {
-        Write-Log -Message "Failed to apply NIC Profiles: $($_.Exception.Message)" -Level ERROR
+        Write-Log -Message "Failed to apply Registry Network Tweaks: $($_.Exception.Message)" -Level WARN
     }
+
+    # 2. Netsh TCP Global Settings
+    try {
+        & netsh int tcp set global autotuninglevel=disabled | Out-Null
+        & netsh int tcp set global rss=enabled | Out-Null
+        & netsh int tcp set global rsc=disabled | Out-Null
+        & netsh int tcp set global netqos=disabled | Out-Null
+        & netsh int tcp set heuristics disabled | Out-Null
+        & netsh int tcp set global ecncapability=disabled | Out-Null
+        & netsh int tcp set global timestamps=disabled | Out-Null
+    } catch {
+        Write-Log -Message "Failed to apply Netsh TCP Settings: $($_.Exception.Message)" -Level WARN
+    }
+
+    # 3. NIC Adapter Advanced Properties
+    try {
+        $adapters = Get-NetAdapter -ErrorAction SilentlyContinue | Where-Object { $_.Status -eq 'Up' -and $_.HardwareInterface -eq $true }
+        foreach ($nic in $adapters) {
+            try { Disable-NetAdapterRsc -Name $nic.Name -ErrorAction SilentlyContinue | Out-Null } catch {}
+            try { Enable-NetAdapterRss -Name $nic.Name -ErrorAction SilentlyContinue | Out-Null } catch {}
+            
+            $props = @(
+                @{N='Interrupt Moderation';V='Disabled'},
+                @{N='Flow Control';V='Disabled'},
+                @{N='Packet Coalescing';V='Disabled'},
+                @{N='Jumbo Packet';V='Disabled'},
+                @{N='Large Send Offload V2 (IPv4)';V='Disabled'},
+                @{N='Large Send Offload V2 (IPv6)';V='Disabled'},
+                @{N='Energy Efficient Ethernet';V='Disabled'},
+                @{N='Green Ethernet';V='Disabled'},
+                @{N='Ultra Low Power Mode';V='Disabled'},
+                @{N='Receive Side Scaling';V='Enabled'}
+            )
+            foreach ($p in $props) {
+                try { Set-NetAdapterAdvancedProperty -Name $nic.Name -DisplayName $p.N -DisplayValue $p.V -NoRestart -ErrorAction SilentlyContinue | Out-Null } catch {}
+            }
+        }
+    } catch {
+        Write-Log -Message "Failed to apply NIC Adapter Properties: $($_.Exception.Message)" -Level WARN
+    }
+
+    # 4. QoS Policies (DSCP 46)
+    try {
+        $names = @('CS2-EF-UDP','CS2-EF-UDP2','CS2-EF-UDP3','CS2-EF-APP')
+        foreach ($n in $names) {
+            try { Get-NetQosPolicy -Name $n -ErrorAction Stop | Remove-NetQosPolicy -Confirm:$false } catch {}
+        }
+        try { New-NetQosPolicy -Name 'CS2-EF-UDP' -IPProtocol UDP -DestinationPortRange 27000-27100 -DSCPAction 46 -NetworkProfile All | Out-Null } catch {}
+        try { New-NetQosPolicy -Name 'CS2-EF-UDP2' -IPProtocol UDP -DestinationPortRange 3478 -DSCPAction 46 -NetworkProfile All | Out-Null } catch {}
+        try { New-NetQosPolicy -Name 'CS2-EF-UDP3' -IPProtocol UDP -DestinationPortRange 4380 -DSCPAction 46 -NetworkProfile All | Out-Null } catch {}
+        try { New-NetQosPolicy -Name 'CS2-EF-APP' -AppPathNameMatchCondition '*\cs2.exe' -IPProtocol UDP -DSCPAction 46 -NetworkProfile All | Out-Null } catch {}
+    } catch {
+        Write-Log -Message "Failed to apply QoS Policies: $($_.Exception.Message)" -Level WARN
+    }
+    
+    Write-Log -Message 'Unified Network Optimization applied successfully.' -Level SUCCESS
+}
+function Invoke-CpuVendorOptimization {
+    [CmdletBinding()]
+    param()
+    Write-Log -Message "Detecting CPU Vendor for Specialized Tweaks..." -Level INFO
+    
+    try {
+        $cpu = Get-CimInstance Win32_Processor
+        $vendor = $cpu.Manufacturer
+        $name = $cpu.Name
+        Write-Log -Message "CPU Detected: $name ($vendor)" -Level INFO
+
+        if ($vendor -match "AuthenticAMD" -or $name -match "AMD") {
+            # --- AMD RYZEN OPTIMIZATIONS ---
+            Write-Log -Message "Applying AMD Ryzen Specific Optimizations..." -Level INFO
+            
+            # 1. Power Plan: High Performance (Ryzen loves high clocks)
+            # 2. Global C-State Control (Disable deep sleep for lower latency)
+            Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Power\PowerSettings\54533251-82be-4824-96c1-47b60b740d00\893dee8e-2bef-41e0-89c6-b55d0929964c' -Name 'Attributes' -Value 2 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Unhide Processor idle minimum state'
+            Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Power\PowerSettings\54533251-82be-4824-96c1-47b60b740d00\5d76a2ca-e8c0-402f-a133-2158492d58ad' -Name 'Attributes' -Value 2 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Unhide Processor idle disable'
+
+            # 3. CCD/CCX Priority (Prefer best cores)
+            # Use 'Heterogeneous Policy' for 3D V-Cache (7800X3D/7950X3D)
+            if ($name -match "3D") {
+                Write-Log -Message "AMD 3D V-Cache Detected: optimizing thread scheduling for cache." -Level INFO
+                Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Power\PowerSettings\54533251-82be-4824-96c1-47b60b740d00\7f2f5cfa-f10c-4823-b5e1-e93ae85f46b5' -Name 'Attributes' -Value 2 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
+                # Force Heterogeneous Thread Scheduling Policy to 'Prefer Performant Processors' (High Performance)
+                # This helps keep games on the V-Cache CCD
+                & powercfg /setacvalueindex scheme_current sub_processor 7f2f5cfa-f10c-4823-b5e1-e93ae85f46b5 1
+                & powercfg /setactive scheme_current
+            }
+            
+            Write-Log -Message "AMD Optimization Complete." -Level SUCCESS
+
+        } elseif ($vendor -match "GenuineIntel" -or $name -match "Intel") {
+            # --- INTEL CORE OPTIMIZATIONS ---
+            Write-Log -Message "Applying Intel Core Specific Optimizations..." -Level INFO
+            
+            # 1. Thread Director (Intel 12th+ Gen P/E Cores)
+            # Check for Hybrid Architecture
+            $isHybrid = $false
+            if ($cpu.NumberOfCores -lt $cpu.NumberOfLogicalProcessors) {
+                # Rough heuristic, but better is checking specifically for E-cores via more complex WMI or Assuming new CPUs
+                # For safety, we apply standard Intel tweaks that benefit all.
+            }
+
+            # 2. Disable TSX (Transactional Synchronization Extensions) if present to prevent micro-stutters
+            Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Kernel' -Name 'DisableTsx' -Value 1 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Disable Intel TSX'
+            
+            # 3. Unpark Cores (Intel often parks aggressively)
+            Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Power\PowerSettings\54533251-82be-4824-96c1-47b60b740d00\0cc5b647-c1df-4637-891a-dec35c318583' -Name 'Attributes' -Value 2 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Unhide Core Parking Min Cores'
+            Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Power\PowerSettings\54533251-82be-4824-96c1-47b60b740d00\ea062031-0e34-4ff1-9b6d-eb1059334028' -Name 'Attributes' -Value 2 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Unhide Core Parking Max Cores'
+            
+            # Force unpark all cores
+            & powercfg /setacvalueindex scheme_current sub_processor 0cc5b647-c1df-4637-891a-dec35c318583 100
+            & powercfg /setacvalueindex scheme_current sub_processor ea062031-0e34-4ff1-9b6d-eb1059334028 100
+            & powercfg /setactive scheme_current
+
+            Write-Log -Message "Intel Optimization Complete." -Level SUCCESS
+        } else {
+            Write-Log -Message "Unknown CPU Vendor. Applying generic high-performance profile." -Level WARN
+        }
+    } catch {
+        Write-Log -Message "Failed to apply CPU vendor tweaks: $($_.Exception.Message)" -Level WARN
+    }
+}
+
+function Invoke-CpuAffinityOptimization {
+    [CmdletBinding()]
+    param()
+    Write-Log -Message "Optimizing CPU Affinity & Core Isolation..." -Level INFO
+    
+    # Strategy: Move known background hogs to Efficiency Cores (if Intel) or Core 0/1 (if AMD/Old Intel)
+    # This leaves the 'best' cores free for the game (CS2).
+    
+    $backgroundApps = @("Discord", "Spotify", "Chrome", "msedge", "Steam", "Battle.net")
+    $cpu = Get-CimInstance Win32_Processor
+    $logicalCores = $cpu.NumberOfLogicalProcessors
+    
+    # Affinity Mask Calculation:
+    # 1 = Core 0
+    # 2 = Core 1
+    # 3 = Core 0 + 1 (0x3)
+    # If we have many cores (e.g., 16), we want background apps on the LAST cores (E-Cores usually) or FIRST cores (if non-hybrid).
+    # For simplicity and safety across all CPUs:
+    # We will bind background apps to Core 0 and 1 (Mask 0x3 = 3) or just Core 0 (Mask 0x1 = 1)
+    # This keeps them off the main gaming cores (usually Core 2+).
+    
+    $affinityMask = 3 # Core 0 and Core 1
+    if ($logicalCores -le 4) { $affinityMask = 1 } # Only Core 0 for quad-cores
+    
+    foreach ($app in $backgroundApps) {
+        $processes = Get-Process -Name $app -ErrorAction SilentlyContinue
+        foreach ($proc in $processes) {
+            try {
+                $proc.ProcessorAffinity = $affinityMask
+                Write-Log -Message "Moved background app '$($proc.ProcessName)' to Core 0/1." -Level SUCCESS
+            } catch {
+                # Often fails due to Access Denied on system/admin processes
+            }
+        }
+    }
+    
+    Write-Log -Message "CPU Affinity optimization applied." -Level SUCCESS
 }
 function Invoke-UltimatePowerPlan {
     [CmdletBinding()]
@@ -499,19 +692,216 @@ function Invoke-EliteScheduledTaskDebloat {
     }
     Write-Log -Message 'Elite scheduled task debloating finished.' -Level SUCCESS
 }
-function Invoke-AdvancedNetworkJitterTuning {
+
+function Invoke-EsportsSystemTweaks {
     [CmdletBinding()]
     param()
-    Write-Log -Message "Applying Advanced Network Jitter and Interrupt Tuning..." -Level INFO
-    try {
-        Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile' -Name 'NetworkThrottlingIndex' -Value 0xFFFFFFFF -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Disable network throttling'
-        & netsh int tcp set global rss=enabled | Out-Null
-        & netsh int tcp set global netqos=disabled | Out-Null
-        & netsh int tcp set global fastopen=enabled | Out-Null
-        Write-Log -Message 'Advanced network jitter tuning applied.' -Level SUCCESS
-    } catch {
-        Write-Log -Message "Failed to apply Network Jitter Tuning: $($_.Exception.Message)" -Level ERROR
+    Write-Log -Message "Applying Esports System Tweaks (Input, Visuals, Stability)..." -Level INFO
+
+    # Input (Mouse/Keyboard)
+    Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\Control Panel\Keyboard' -Name 'KeyboardDelay' -Value 0 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
+    Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\Control Panel\Keyboard' -Name 'KeyboardSpeed' -Value 31 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
+    Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\Control Panel\Mouse' -Name 'MouseSpeed' -Value '0' -Type ([Microsoft.Win32.RegistryValueKind]::String)
+    Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\Control Panel\Mouse' -Name 'MouseThreshold1' -Value '0' -Type ([Microsoft.Win32.RegistryValueKind]::String)
+    Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\Control Panel\Mouse' -Name 'MouseThreshold2' -Value '0' -Type ([Microsoft.Win32.RegistryValueKind]::String)
+    Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced' -Name 'DisableMouseAcceleration' -Value 1 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
+    Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\Control Panel\Mouse' -Name 'SampleRate' -Value 1000 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
+    Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\Control Panel\Mouse' -Name 'MouseSensitivity' -Value 10 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
+    Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\Control Panel\Mouse' -Name 'SmoothMouseXCurve' -Value @(0,0,0,0,0,0,0,0) -Type ([Microsoft.Win32.RegistryValueKind]::Binary)
+    Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\Control Panel\Mouse' -Name 'SmoothMouseYCurve' -Value @(0,0,0,0,0,0,0,0) -Type ([Microsoft.Win32.RegistryValueKind]::Binary)
+    Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\Control Panel\Keyboard' -Name 'InitialKeyboardIndicators' -Value 2 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
+
+    # General System
+    Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Remote Assistance' -Name 'fAllowToGetHelp' -Value 0 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
+    Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management' -Name 'DisableCompression' -Value 1 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
+    Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management' -Name 'IoPageLockLimit' -Value 0 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
+    
+    # GameDVR & GameBar Deep Disable
+    Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\System\GameConfigStore' -Name 'GameDVR_Enabled' -Value 0 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
+    Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\GameDVR' -Name 'AppCaptureEnabled' -Value 0 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
+    Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\Software\Microsoft\GameBar' -Name 'UseNexusForGameBarEnabled' -Value 0 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
+    Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\Software\Microsoft\GameBar' -Name 'AutoGameModeEnabled' -Value 1 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
+    Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\GameDVR' -Name 'AudioEncodingBitrate' -Value 0x1f400 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
+    Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\GameDVR' -Name 'AudioCaptureEnabled' -Value 0 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
+    Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\GameDVR' -Name 'HistoricalCaptureEnabled' -Value 0 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
+    Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\GameDVR' -Name 'EchoCancellationEnabled' -Value 1 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
+    Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\GameDVR' -Name 'CursorCaptureEnabled' -Value 0 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
+    Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\GameDVR' -Name 'MicrophoneCaptureEnabled' -Value 0 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
+    $vkNames = @(
+        'VKToggleGameBar','VKMToggleGameBar','VKSaveHistoricalVideo','VKMSaveHistoricalVideo',
+        'VKToggleRecording','VKMToggleRecording','VKTakeScreenshot','VKMTakeScreenshot',
+        'VKToggleRecordingIndicator','VKMToggleRecordingIndicator','VKToggleMicrophoneCapture',
+        'VKMToggleMicrophoneCapture','VKToggleCameraCapture','VKMToggleCameraCapture',
+        'VKToggleBroadcast','VKMToggleBroadcast'
+    )
+    foreach ($name in $vkNames) {
+        Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\GameDVR' -Name $name -Value 0 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
     }
+
+    # Visuals
+    Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced' -Name 'TaskbarAnimations' -Value 0 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
+    Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\Software\Microsoft\Windows\DWM' -Name 'EnableAeroPeek' -Value 0 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
+    Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\Software\Microsoft\Windows\DWM' -Name 'AlwaysHibernateThumbnails' -Value 0 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
+    Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced' -Name 'IconsOnly' -Value 0 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
+    Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced' -Name 'MultiTaskingAltTabFilter' -Value 3 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
+    Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\Software\Microsoft\Lighting' -Name 'AmbientLightingEnabled' -Value 0 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
+    Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\Software\Microsoft\Lighting' -Name 'ControlledByForegroundApp' -Value 0 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
+
+    # PageFile (RAM-Aware)
+    try {
+        $ramInfo = Get-CimInstance Win32_PhysicalMemory | Measure-Object -Property Capacity -Sum
+        $ramGB = [math]::Round($ramInfo.Sum / 1GB)
+        if ($ramGB -ge 32) {
+            Write-Log -Message "High RAM ($ramGB GB). Skipping PageFile override." -Level INFO
+        } elseif ($ramGB -ge 16) {
+            Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management' -Name 'PagingFiles' -Value "$env:SystemDrive\pagefile.sys 4096 12288" -Type ([Microsoft.Win32.RegistryValueKind]::MultiString) -Description 'Set optimized page file size'
+        } else {
+            Write-Log -Message "Low RAM ($ramGB GB). Using System Managed PageFile." -Level WARN
+        }
+        Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management' -Name 'ClearPageFileAtShutdown' -Value 0 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
+    } catch {}
+
+    # Stability & GPU
+    Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management' -Name 'FeatureSettingsOverride' -Value 3 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
+    Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management' -Name 'FeatureSettingsOverrideMask' -Value 3 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
+    Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\GraphicsDrivers' -Name 'TdrLevel' -Value 0 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
+    Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\GraphicsDrivers' -Name 'TdrDelay' -Value 60 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
+    Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\Windows Error Reporting' -Name 'Disabled' -Value 1 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
+    Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System' -Name 'DisableStatusMessages' -Value 1 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
+    
+    # Exclusions
+    Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows Defender\Exclusions\Processes' -Name 'csrss.exe' -Value 0 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
+    Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows Defender\Exclusions\Processes' -Name 'dwm.exe' -Value 0 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
+    Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows Defender\Exclusions\Processes' -Name 'explorer.exe' -Value 0 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
+
+    # DWM & Scheduler
+    Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\Software\Microsoft\Windows\DWM' -Name 'Composition' -Value 1 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
+    Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\Software\Microsoft\Windows\DWM' -Name 'CompositionPolicy' -Value 2 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
+    Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\Software\Microsoft\Windows\DWM' -Name 'EnableAero' -Value 0 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
+    Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\Software\Microsoft\Windows\DWM' -Name 'Animations' -Value 0 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
+    Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\GraphicsDrivers' -Name 'SchedulerThreadPriority' -Value 2 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
+    Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\GraphicsDrivers' -Name 'MultiEngineAllowed' -Value 1 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
+    
+    # Services
+    Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\SysMain' -Name 'Start' -Value 4 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
+    Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\DiagTrack' -Name 'Start' -Value 4 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
+    Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\dmwappushservice' -Name 'Start' -Value 4 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
+
+    # Priority & Power
+    Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\PriorityControl' -Name 'IoPrioritySeparation' -Value 0x26 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
+    Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\PriorityControl' -Name 'TimeQoS' -Value 2 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
+    Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\PriorityControl' -Name 'TimeIncrement' -Value 10000 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
+    Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management' -Name 'AggressiveWorkingSetTrim' -Value 0 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
+    Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management' -Name 'TrimWorkingSet' -Value 0 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
+    Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Power\PowerSettings\54533251-82be-4824-96c1-47b60b740d00\bc5038f7-23e0-4960-96da-33abaf5935ec' -Name 'ACSettingIndex' -Value 0 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
+    Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Power\PowerSettings\54533251-82be-4824-96c1-47b60b740d00\06cadf0e-64ed-448a-8927-ce7bf90eb35d' -Name 'ACSettingIndex' -Value 0 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
+    Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Power\PowerSettings\54533251-82be-4824-96c1-47b60b740d00\3b04d4fd-1cc7-4f23-ab1c-d1337819e4d' -Name 'ACSettingIndex' -Value 0 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
+    
+    Write-Log -Message 'Esports System Tweaks applied.' -Level SUCCESS
+}
+function Invoke-CpuVendorOptimization {
+    [CmdletBinding()]
+    param()
+    Write-Log -Message "Detecting CPU Vendor for Specialized Tweaks..." -Level INFO
+    
+    try {
+        $cpu = Get-CimInstance Win32_Processor
+        $vendor = $cpu.Manufacturer
+        $name = $cpu.Name
+        Write-Log -Message "CPU Detected: $name ($vendor)" -Level INFO
+
+        if ($vendor -match "AuthenticAMD" -or $name -match "AMD") {
+            # --- AMD RYZEN OPTIMIZATIONS ---
+            Write-Log -Message "Applying AMD Ryzen Specific Optimizations..." -Level INFO
+            
+            # 1. Power Plan: High Performance (Ryzen loves high clocks)
+            # 2. Global C-State Control (Disable deep sleep for lower latency)
+            Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Power\PowerSettings\54533251-82be-4824-96c1-47b60b740d00\893dee8e-2bef-41e0-89c6-b55d0929964c' -Name 'Attributes' -Value 2 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Unhide Processor idle minimum state'
+            Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Power\PowerSettings\54533251-82be-4824-96c1-47b60b740d00\5d76a2ca-e8c0-402f-a133-2158492d58ad' -Name 'Attributes' -Value 2 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Unhide Processor idle disable'
+
+            # 3. CCD/CCX Priority (Prefer best cores)
+            # Use 'Heterogeneous Policy' for 3D V-Cache (7800X3D/7950X3D)
+            if ($name -match "3D") {
+                Write-Log -Message "AMD 3D V-Cache Detected: optimizing thread scheduling for cache." -Level INFO
+                Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Power\PowerSettings\54533251-82be-4824-96c1-47b60b740d00\7f2f5cfa-f10c-4823-b5e1-e93ae85f46b5' -Name 'Attributes' -Value 2 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
+                # Force Heterogeneous Thread Scheduling Policy to 'Prefer Performant Processors' (High Performance)
+                # This helps keep games on the V-Cache CCD
+                & powercfg /setacvalueindex scheme_current sub_processor 7f2f5cfa-f10c-4823-b5e1-e93ae85f46b5 1
+                & powercfg /setactive scheme_current
+            }
+            
+            Write-Log -Message "AMD Optimization Complete." -Level SUCCESS
+
+        } elseif ($vendor -match "GenuineIntel" -or $name -match "Intel") {
+            # --- INTEL CORE OPTIMIZATIONS ---
+            Write-Log -Message "Applying Intel Core Specific Optimizations..." -Level INFO
+            
+            # 1. Thread Director (Intel 12th+ Gen P/E Cores)
+            # Check for Hybrid Architecture
+            $isHybrid = $false
+            if ($cpu.NumberOfCores -lt $cpu.NumberOfLogicalProcessors) {
+                # Rough heuristic, but better is checking specifically for E-cores via more complex WMI or Assuming new CPUs
+                # For safety, we apply standard Intel tweaks that benefit all.
+            }
+
+            # 2. Disable TSX (Transactional Synchronization Extensions) if present to prevent micro-stutters
+            Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Kernel' -Name 'DisableTsx' -Value 1 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Disable Intel TSX'
+            
+            # 3. Unpark Cores (Intel often parks aggressively)
+            Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Power\PowerSettings\54533251-82be-4824-96c1-47b60b740d00\0cc5b647-c1df-4637-891a-dec35c318583' -Name 'Attributes' -Value 2 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Unhide Core Parking Min Cores'
+            Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Power\PowerSettings\54533251-82be-4824-96c1-47b60b740d00\ea062031-0e34-4ff1-9b6d-eb1059334028' -Name 'Attributes' -Value 2 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Unhide Core Parking Max Cores'
+            
+            # Force unpark all cores
+            & powercfg /setacvalueindex scheme_current sub_processor 0cc5b647-c1df-4637-891a-dec35c318583 100
+            & powercfg /setacvalueindex scheme_current sub_processor ea062031-0e34-4ff1-9b6d-eb1059334028 100
+            & powercfg /setactive scheme_current
+
+            Write-Log -Message "Intel Optimization Complete." -Level SUCCESS
+        } else {
+            Write-Log -Message "Unknown CPU Vendor. Applying generic high-performance profile." -Level WARN
+        }
+    } catch {
+        Write-Log -Message "Failed to apply CPU vendor tweaks: $($_.Exception.Message)" -Level WARN
+    }
+}
+
+function Invoke-CpuAffinityOptimization {
+    [CmdletBinding()]
+    param()
+    Write-Log -Message "Optimizing CPU Affinity & Core Isolation..." -Level INFO
+    
+    # Strategy: Move known background hogs to Efficiency Cores (if Intel) or Core 0/1 (if AMD/Old Intel)
+    # This leaves the 'best' cores free for the game (CS2).
+    
+    $backgroundApps = @("Discord", "Spotify", "Chrome", "msedge", "Steam", "Battle.net")
+    $cpu = Get-CimInstance Win32_Processor
+    $logicalCores = $cpu.NumberOfLogicalProcessors
+    
+    # Affinity Mask Calculation:
+    # 1 = Core 0
+    # 2 = Core 1
+    # 3 = Core 0 + 1 (0x3)
+    # If we have many cores (e.g., 16), we want background apps on the LAST cores (E-Cores usually) or FIRST cores (if non-hybrid).
+    # For simplicity and safety across all CPUs:
+    # We will bind background apps to Core 0 and 1 (Mask 0x3 = 3) or just Core 0 (Mask 0x1 = 1)
+    # This keeps them off the main gaming cores (usually Core 2+).
+    
+    $affinityMask = 3 # Core 0 and Core 1
+    if ($logicalCores -le 4) { $affinityMask = 1 } # Only Core 0 for quad-cores
+    
+    foreach ($app in $backgroundApps) {
+        $processes = Get-Process -Name $app -ErrorAction SilentlyContinue
+        foreach ($proc in $processes) {
+            try {
+                $proc.ProcessorAffinity = $affinityMask
+                Write-Log -Message "Moved background app '$($proc.ProcessName)' to Core 0/1." -Level SUCCESS
+            } catch {
+                # Often fails due to Access Denied on system/admin processes
+            }
+        }
+    }
+    
+    Write-Log -Message "CPU Affinity optimization applied." -Level SUCCESS
 }
 function Invoke-ElitePerformanceTweaks {
     [CmdletBinding()]
@@ -524,7 +914,6 @@ function Invoke-ElitePerformanceTweaks {
         Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\System\GameConfigStore' -Name 'GameDVR_FSEBehaviorMode' -Value 2 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Global FSO disable for lower input lag'
         Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\System\GameConfigStore' -Name 'GameDVR_HonorUserFSEBehaviorMode' -Value 1 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Honor user FSE settings'
         Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\System\GameConfigStore' -Name 'GameDVR_Enabled' -Value 0 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Deep GameDVR disable'
-        Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\System\CurrentControlSet\Control\PriorityControl' -Name 'Win32PrioritySeparation' -Value 40 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Elite process scheduling for foreground games'
         Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\kernel' -Name 'GlobalTimerResolutionRequests' -Value 1 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Enable global timer resolution requests'
         Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Power\PowerThrottling' -Name 'PowerThrottlingOff' -Value 1 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Disable global power throttling'
         $mmcssPath = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\Games'
@@ -582,6 +971,16 @@ function Invoke-ProfessionalServiceDebloat {
         } catch {
             Write-Log -Message "Failed to disable service $svcName" -Level WARN
         }
+    }
+}
+function Invoke-ProcessSchedulingTweaks {
+    [CmdletBinding()]
+    param()
+    Write-Log -Message 'Standardizing Process Scheduling (Win32PrioritySeparation)...' -Level INFO
+    try {
+        Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\PriorityControl' -Name 'Win32PrioritySeparation' -Value 40 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Elite process scheduling for foreground games (0x28)'
+    } catch {
+        Write-Log -Message "Failed to apply process scheduling: $($_.Exception.Message)" -Level WARN
     }
 }
 function Invoke-EliteSystemCleaner {
@@ -767,158 +1166,7 @@ function Invoke-PerformanceTweaks {
     Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\SOFTWARE\Classes\Local Settings\Software\Microsoft\Windows\Shell\Bags\AllFolders\Shell' -Name 'FolderType' -Value 'NotSpecified' -Type ([Microsoft.Win32.RegistryValueKind]::String)
     Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer' -Name 'MaxCachedIcons' -Value '4096' -Type ([Microsoft.Win32.RegistryValueKind]::String)
 }
-function Invoke-TcpGlobalLowLatency {
-    [CmdletBinding()]
-    param()
-    try { & netsh int tcp set heuristics disabled | Out-Null } catch {}
-    try { & netsh int tcp set global autotuninglevel=disabled | Out-Null } catch {}
-    try { & netsh int tcp set global ecncapability=disabled | Out-Null } catch {}
-    try { & netsh int tcp set global timestamps=disabled | Out-Null } catch {}
-    try { & netsh int tcp set global rsc=disabled | Out-Null } catch {}
-    try { & netsh int tcp set global rss=enabled | Out-Null } catch {}
-    Write-Log -Message 'Applied TCP global low-latency settings.' -Level SUCCESS
-}
-function Invoke-NetworkAdapterLowLatencyTweaks {
-    [CmdletBinding()]
-    param()
-    try {
-        $adapters = Get-NetAdapter -ErrorAction SilentlyContinue | Where-Object { $_.Status -eq 'Up' -and $_.HardwareInterface -eq $true }
-    } catch {
-        $adapters = @()
-    }
-    if ($adapters.Count -eq 0) {
-        Write-Log -Message 'No active physical adapters found for NIC low-latency tuning.' -Level WARN
-        return
-    }
-    foreach ($nic in $adapters) {
-        try { Disable-NetAdapterRsc -Name $nic.Name -ErrorAction SilentlyContinue | Out-Null } catch {}
-        try { Enable-NetAdapterRss -Name $nic.Name -ErrorAction SilentlyContinue | Out-Null } catch {}
-        $props = @(
-            @{N='Interrupt Moderation';V='Disabled'},
-            @{N='Large Send Offload V2 (IPv4)';V='Disabled'},
-            @{N='Large Send Offload V2 (IPv6)';V='Disabled'},
-            @{N='Energy Efficient Ethernet';V='Disabled'},
-            @{N='Receive Side Scaling';V='Enabled'}
-        )
-        foreach ($p in $props) {
-            try { Set-NetAdapterAdvancedProperty -Name $nic.Name -DisplayName $p.N -DisplayValue $p.V -NoRestart -ErrorAction Stop | Out-Null } catch {}
-        }
-    }
-    Write-Log -Message 'Applied NIC low-latency properties (RSC off, RSS on, offloads tuned).' -Level SUCCESS
-}
-function Invoke-QoSLowLatencyPolicies {
-    [CmdletBinding()]
-    param()
-    try {
-        $names = @('CS2-EF-UDP','CS2-EF-UDP2','CS2-EF-UDP3','CS2-EF-APP')
-        foreach ($n in $names) {
-            try { Get-NetQosPolicy -Name $n -ErrorAction Stop | Remove-NetQosPolicy -Confirm:$false } catch {}
-        }
-        try { New-NetQosPolicy -Name 'CS2-EF-UDP' -IPProtocol UDP -DestinationPortRange 27000-27100 -DSCPAction 46 -NetworkProfile All | Out-Null } catch {}
-        try { New-NetQosPolicy -Name 'CS2-EF-UDP2' -IPProtocol UDP -DestinationPortRange 3478 -DSCPAction 46 -NetworkProfile All | Out-Null } catch {}
-        try { New-NetQosPolicy -Name 'CS2-EF-UDP3' -IPProtocol UDP -DestinationPortRange 4380 -DSCPAction 46 -NetworkProfile All | Out-Null } catch {}
-        try { New-NetQosPolicy -Name 'CS2-EF-APP' -AppPathNameMatchCondition '*\cs2.exe' -IPProtocol UDP -DSCPAction 46 -NetworkProfile All | Out-Null } catch {}
-        Write-Log -Message 'QoS DSCP 46 policies created for CS2 traffic.' -Level SUCCESS
-    } catch {
-        Write-Log -Message "Failed to apply QoS policies: $($_.Exception.Message)" -Level ERROR
-    }
-}
-function Invoke-EsportsLowLatencyTweaks {
-    [CmdletBinding()]
-    param()
-    Write-Log -Message "Applying Esports and Low Latency Tweaks..." -Level INFO
-    Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile' -Name 'NetworkThrottlingIndex' -Value 0xffffffff -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Disable network throttling'
-    Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile' -Name 'SystemResponsiveness' -Value 0 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Set system responsiveness to 0 (favor foreground)'
-    $gamesPath = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\Games'
-    Set-RegistryValueSafe -Path $gamesPath -Name 'GPU Priority' -Value 8 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Prioritize GPU for games'
-    Set-RegistryValueSafe -Path $gamesPath -Name 'Priority' -Value 6 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'High scheduling priority for games'
-    Set-RegistryValueSafe -Path $gamesPath -Name 'Scheduling Category' -Value 'High' -Type ([Microsoft.Win32.RegistryValueKind]::String)
-    Set-RegistryValueSafe -Path $gamesPath -Name 'SFIO Priority' -Value 'High' -Type ([Microsoft.Win32.RegistryValueKind]::String)
-    Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters' -Name 'TcpAckFrequency' -Value 1 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Reduce TCP ACK frequency for lower latency'
-    Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters' -Name 'TCPNoDelay' -Value 1 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Enable TCP no-delay for immediate packet sending'
-    Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters' -Name 'DefaultTTL' -Value 64 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Set optimal TTL for gaming packets'
-    Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters' -Name 'TcpWindowSize' -Value 64240 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Optimize TCP window size for gaming traffic'
-    Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters' -Name 'GlobalMaxTcpWindowSize' -Value 64240 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Set global max TCP window size'
-    Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile' -Name 'AlwaysOn' -Value 0 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Disable always-on network transfers'
-    Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters' -Name 'EnablePMTUDiscovery' -Value 1 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Enable Path MTU Discovery for UDP games'
-    Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters' -Name 'EnablePMTUBHDetect' -Value 0 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Disable black hole detection for gaming'
-    try { Invoke-TcpGlobalLowLatency } catch { Write-Log -Message "TCP global tuning failed: $($_.Exception.Message)" -Level WARN }
-    try { Invoke-NetworkAdapterLowLatencyTweaks } catch { Write-Log -Message "NIC tuning failed: $($_.Exception.Message)" -Level WARN }
-    try { Invoke-QoSLowLatencyPolicies } catch { Write-Log -Message "QoS policy tuning failed: $($_.Exception.Message)" -Level WARN }
-    Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\Control Panel\Keyboard' -Name 'KeyboardDelay' -Value 0 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Shortest keyboard repeat delay'
-    Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\Control Panel\Keyboard' -Name 'KeyboardSpeed' -Value 31 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Fastest keyboard repeat rate'
-    Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\Control Panel\Mouse' -Name 'MouseSpeed' -Value '0' -Type ([Microsoft.Win32.RegistryValueKind]::String) -Description 'Disable mouse acceleration'
-    Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\Control Panel\Mouse' -Name 'MouseThreshold1' -Value '0' -Type ([Microsoft.Win32.RegistryValueKind]::String) -Description 'Disable mouse acceleration threshold 1'
-    Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\Control Panel\Mouse' -Name 'MouseThreshold2' -Value '0' -Type ([Microsoft.Win32.RegistryValueKind]::String) -Description 'Disable mouse acceleration threshold 2'
-    Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced' -Name 'DisableMouseAcceleration' -Value 1 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Enable raw mouse input'
-    Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\Control Panel\Mouse' -Name 'SampleRate' -Value 1000 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Set high mouse polling rate'
-    Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\Control Panel\Mouse' -Name 'MouseSensitivity' -Value 10 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Optimize mouse sensitivity for precision'
-    Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\Control Panel\Mouse' -Name 'SmoothMouseXCurve' -Value @(0,0,0,0,0,0,0,0) -Type ([Microsoft.Win32.RegistryValueKind]::Binary) -Description 'Disable mouse X smoothing'
-    Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\Control Panel\Mouse' -Name 'SmoothMouseYCurve' -Value @(0,0,0,0,0,0,0,0) -Type ([Microsoft.Win32.RegistryValueKind]::Binary) -Description 'Disable mouse Y smoothing'
-    Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\Control Panel\Keyboard' -Name 'InitialKeyboardIndicators' -Value 2 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Set keyboard for instant response'
-    Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\PriorityControl' -Name 'Win32PrioritySeparation' -Value 40 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Adjust for best performance of programs'
-    Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Remote Assistance' -Name 'fAllowToGetHelp' -Value 0 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Disable Remote Assistance'
-    Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management' -Name 'DisableCompression' -Value 1 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Disable memory compression to reduce stutters'
-    Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management' -Name 'LargeSystemCache' -Value 1 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Enable large system cache for better game performance'
-    Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management' -Name 'IoPageLockLimit' -Value 0 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Unlock I/O page limit for smoother gameplay'
-    Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\System\GameConfigStore' -Name 'GameDVR_Enabled' -Value 0 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Disable Game DVR'
-    Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\GameDVR' -Name 'AppCaptureEnabled' -Value 0 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Disable background capture'
-    Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\Software\Microsoft\GameBar' -Name 'UseNexusForGameBarEnabled' -Value 0 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Disable Game Bar overlay'
-    Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\Software\Microsoft\GameBar' -Name 'AutoGameModeEnabled' -Value 1 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Keep Game Mode enabled'
-    Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\GameDVR' -Name 'AudioEncodingBitrate' -Value 0x1f400 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
-    Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\GameDVR' -Name 'AudioCaptureEnabled' -Value 0 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
-    Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\GameDVR' -Name 'HistoricalCaptureEnabled' -Value 0 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
-    Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\GameDVR' -Name 'EchoCancellationEnabled' -Value 1 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
-    Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\GameDVR' -Name 'CursorCaptureEnabled' -Value 0 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
-    $vkNames = @(
-        'VKToggleGameBar','VKMToggleGameBar','VKSaveHistoricalVideo','VKMSaveHistoricalVideo',
-        'VKToggleRecording','VKMToggleRecording','VKTakeScreenshot','VKMTakeScreenshot',
-        'VKToggleRecordingIndicator','VKMToggleRecordingIndicator','VKToggleMicrophoneCapture',
-        'VKMToggleMicrophoneCapture','VKToggleCameraCapture','VKMToggleCameraCapture',
-        'VKToggleBroadcast','VKMToggleBroadcast'
-    )
-    foreach ($name in $vkNames) {
-        Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\GameDVR' -Name $name -Value 0 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
-    }
-    Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\GameDVR' -Name 'MicrophoneCaptureEnabled' -Value 0 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
-    Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced' -Name 'TaskbarAnimations' -Value 0 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
-    Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\Software\Microsoft\Windows\DWM' -Name 'EnableAeroPeek' -Value 0 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
-    Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\Software\Microsoft\Windows\DWM' -Name 'AlwaysHibernateThumbnails' -Value 0 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
-    Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced' -Name 'IconsOnly' -Value 0 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
-    Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced' -Name 'MultiTaskingAltTabFilter' -Value 3 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Alt-Tab shows only windows'
-    Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\Software\Microsoft\Lighting' -Name 'AmbientLightingEnabled' -Value 0 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
-    Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\Software\Microsoft\Lighting' -Name 'ControlledByForegroundApp' -Value 0 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
-    Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management' -Name 'ClearPageFileAtShutdown' -Value 0 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Prevent page file clearing that can cause freezes'
-    Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management' -Name 'PagingFiles' -Value 'c:\pagefile.sys 4096 8192' -Type ([Microsoft.Win32.RegistryValueKind]::String) -Description 'Set optimal page file size for gaming'
-    Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management' -Name 'FeatureSettingsOverride' -Value 3 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Disable memory compression features'
-    Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management' -Name 'FeatureSettingsOverrideMask' -Value 3 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Mask for memory compression disable'
-    Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\GraphicsDrivers' -Name 'TdrLevel' -Value 0 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Disable GPU timeout detection to prevent freezes'
-    Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\GraphicsDrivers' -Name 'TdrDelay' -Value 60 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Increase GPU timeout delay for stability'
-    Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\Windows Error Reporting' -Name 'Disabled' -Value 1 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Disable Windows Error Reporting'
-    Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System' -Name 'DisableStatusMessages' -Value 1 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Disable system status messages that interrupt games'
-    Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows Defender\Exclusions\Processes' -Name 'csrss.exe' -Value 0 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Exclude critical system process from scanning'
-    Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows Defender\Exclusions\Processes' -Name 'dwm.exe' -Value 0 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Exclude DWM process from scanning'
-    Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows Defender\Exclusions\Processes' -Name 'explorer.exe' -Value 0 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Exclude explorer process from scanning'
-    Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\Software\Microsoft\Windows\DWM' -Name 'Composition' -Value 1 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Keep DWM composition enabled but optimized'
-    Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\Software\Microsoft\Windows\DWM' -Name 'CompositionPolicy' -Value 2 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Set composition policy for performance'
-    Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\Software\Microsoft\Windows\DWM' -Name 'EnableAero' -Value 0 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Disable Aero effects for maximum FPS'
-    Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\Software\Microsoft\Windows\DWM' -Name 'Animations' -Value 0 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Disable all DWM animations'
-    Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\GraphicsDrivers' -Name 'SchedulerThreadPriority' -Value 2 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Set high GPU scheduler priority'
-    Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\GraphicsDrivers' -Name 'MultiEngineAllowed' -Value 1 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Allow multiple GPU engines for better parallelism'
-    Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\SysMain' -Name 'Start' -Value 4 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Disable SysMain (SuperFetch) service'
-    Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\DiagTrack' -Name 'Start' -Value 4 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Disable Diagnostics Tracking service'
-    Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\dmwappushservice' -Name 'Start' -Value 4 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Disable Device Management Wireless Application service'
-    Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\PriorityControl' -Name 'Win32PrioritySeparation' -Value 40 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'High priority separation for smooth frametimes'
-    Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\PriorityControl' -Name 'IoPrioritySeparation' -Value 0x26 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'High I/O priority separation for gaming'
-    Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\PriorityControl' -Name 'TimeQoS' -Value 2 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'High timer quality of service'
-    Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\PriorityControl' -Name 'TimeIncrement' -Value 10000 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Optimized timer increment for gaming'
-    Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management' -Name 'AggressiveWorkingSetTrim' -Value 0 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Prevent aggressive memory trimming during games'
-    Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management' -Name 'TrimWorkingSet' -Value 0 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Disable working set trimming for stability'
-    Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Power\PowerSettings\54533251-82be-4824-96c1-47b60b740d00\bc5038f7-23e0-4960-96da-33abaf5935ec' -Name 'ACSettingIndex' -Value 0 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Maximum processor performance'
-    Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Power\PowerSettings\54533251-82be-4824-96c1-47b60b740d00\06cadf0e-64ed-448a-8927-ce7bf90eb35d' -Name 'ACSettingIndex' -Value 0 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Maximum performance power plan'
-    Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Power\PowerSettings\54533251-82be-4824-96c1-47b60b740d00\3b04d4fd-1cc7-4f23-ab1c-d1337819e4d' -Name 'ACSettingIndex' -Value 0 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Disable CPU energy performance bias'
-    Write-Log -Message 'Advanced esports stability tweaks applied: Reduced network latency, optimized input, prevented FPS drops.' -Level SUCCESS
-}
+
 function Get-CpuVendor {
     try {
         $cpu = Get-CimInstance -ClassName Win32_Processor -ErrorAction Stop | Select-Object -First 1 Manufacturer, Name
@@ -1037,55 +1285,78 @@ function Invoke-NvidiaGpuTweaks {
 function Generate-NvidiaInspectorProfile {
     [CmdletBinding()]
     param()
-    $inspectorProfile = @"
-[Profile]
-ProfileName=Howl's CS2 Esports Profile
-[Settings]
-OGL_THREAD_CONTROL_ID=0x10A8BF3C
-OGL_THREAD_CONTROL=0x00000001
-OGL_TRIPLE_BUFFER=0x20EC51B2
-OGL_TRIPLE_BUFFER=0x00000000
-ANISO_MODE_LEVEL=0x809D0789
-ANISO_MODE_LEVEL=0x00000010
-ANISO_MODE_SELECTOR=0xE12B1CC9
-ANISO_MODE_SELECTOR=0x00000001
-LOD_BIAS_ADJUST=0xF8086B9C
-LOD_BIAS_ADJUST=0x00000000
-LOD_BIAS_DX12=0x60D3E557
-LOD_BIAS_DX12=0x00000000
-ANTIALIASING_COMPATIBILITY=0x10ECDB5C
-ANTIALIASING_COMPATIBILITY=0x00000000
-ANTIALIASING_MODE=0xE10D97A5
-ANTIALIASING_MODE=0x00000000
-ANTIALIASING_SETTING=0x10ECDB5D
-ANTIALIASING_SETTING=0x00000000
-VSYNCMODE=0xDA5D9D4C
-VSYNCMODE=0x00000000
-VSYNCSMOOTHAFR=0x9A7F4F3C
-VSYNCSMOOTHAFR=0x00000000
-POWER_MANAGEMENT_MODE=0xFA7D2AA7
-POWER_MANAGEMENT_MODE=0x00000001
-PREFERRED_PSTATE=0x1057EB71
-PREFERRED_PSTATE=0x00000001
-MAX_FRAME_LATENCY=0xFDAA6A5C
-MAX_FRAME_LATENCY=0x00000001
-VRPRERENDERLIMIT=0x9A7F4F3D
-VRPRERENDERLIMIT=0x00000001
-SHADER_CACHE_SIZE=0x234D8A2C
-SHADER_CACHE_SIZE=0x0000000A
-SHADER_DISKCACHE=0x10ECDB5E
-SHADER_DISKCACHE=0x00000001
-THREADED_OPTIMIZATION=0x10ECDB5F
-THREADED_OPTIMIZATION=0x00000001
-EXECUTABLE=cs2.exe
-"@
-    $profilePath = Join-Path $Script:DesktopPath "Howl_CS2_Esports_Profile.nip"
+    
+    $toolsDir = "C:\HowlTools"
+    if (-not (Test-Path $toolsDir)) {
+        New-Item -ItemType Directory -Path $toolsDir -Force | Out-Null
+        Write-Log -Message "Created tools directory: $toolsDir" -Level INFO
+    }
+
+    $profilePath = Join-Path $toolsDir "howl.nip"
+    $toolUrl = "https://github.com/xhowlzzz/Optimization/raw/main/Tools/nvidiaProfileInspector.exe"
+    $profileUrl = "https://github.com/xhowlzzz/Optimization/raw/main/Tools/howl.nip"
+    $toolPath = Join-Path $toolsDir "nvidiaProfileInspector.exe"
+    
+    # Checksums (SHA256) - SECURITY CRITICAL
+    $toolHash = "9AA8D6539533D9238A39AAB7EE5CE7C6B692D8C58ABE1ED5E551980860A887CC"
+    $profileHash = "45FAE9FFE9322A39F24F0B0BEDF8157E72A2799AF45798D712613D4D685E605D"
+
     try {
-        Set-Content -Path $profilePath -Value $inspectorProfile -Encoding UTF8
-        Write-Log -Message "NVIDIA Inspector profile generated: $profilePath" -Level SUCCESS
-        Write-Log -Message 'Download NVIDIA Profile Inspector and import this .nip file for optimal CS2 settings.' -Level INFO
+        # Profile Check & Download
+        $downloadProfile = $true
+        if (Test-Path $profilePath) {
+            $localProfileHash = (Get-FileHash $profilePath -Algorithm SHA256).Hash
+            if ($localProfileHash -eq $profileHash) {
+                Write-Log -Message "howl.nip verified locally. Skipping download." -Level INFO
+                $downloadProfile = $false
+            }
+        }
+        
+        if ($downloadProfile) {
+            Write-Log -Message "Downloading Howl's Elite CS2 Profile (howl.nip)..." -Level INFO
+            Invoke-WebRequest -Uri $profileUrl -OutFile $profilePath -ErrorAction Stop
+            
+            # Verify Downloaded Profile Hash
+            $downloadedProfileHash = (Get-FileHash $profilePath -Algorithm SHA256).Hash
+            if ($downloadedProfileHash -ne $profileHash) {
+                Write-Log -Message "SECURITY WARNING: howl.nip hash mismatch! Deleting file." -Level ERROR
+                Remove-Item $profilePath -Force
+                return
+            }
+            Write-Log -Message "NVIDIA Inspector profile downloaded & verified." -Level SUCCESS
+        }
+        
+        # Tool Check & Download
+        $downloadTool = $true
+        if (Test-Path $toolPath) {
+            $localToolHash = (Get-FileHash $toolPath -Algorithm SHA256).Hash
+            if ($localToolHash -eq $toolHash) {
+                Write-Log -Message "nvidiaProfileInspector.exe verified locally. Skipping download." -Level INFO
+                $downloadTool = $false
+            }
+        }
+
+        if ($downloadTool) {
+            Write-Log -Message "Downloading NVIDIA Profile Inspector..." -Level INFO
+            Invoke-WebRequest -Uri $toolUrl -OutFile $toolPath -ErrorAction Stop
+            
+            # Verify Downloaded Tool Hash
+            $downloadedToolHash = (Get-FileHash $toolPath -Algorithm SHA256).Hash
+            if ($downloadedToolHash -ne $toolHash) {
+                Write-Log -Message "SECURITY WARNING: nvidiaProfileInspector.exe hash mismatch! Deleting file." -Level ERROR
+                Remove-Item $toolPath -Force
+                return
+            }
+            Write-Log -Message "NVIDIA Inspector tool downloaded & verified." -Level SUCCESS
+        }
+
+        if (Test-Path $toolPath) {
+            Write-Log -Message "Launching NVIDIA Profile Inspector..." -Level INFO
+            Start-Process -FilePath $toolPath -ArgumentList "`"$profilePath`""
+            Write-Log -Message "Profile imported. Please apply changes in the tool if required." -Level SUCCESS
+        }
     } catch {
-        Write-Log -Message "Failed to generate NVIDIA Inspector profile: $($_.Exception.Message)" -Level ERROR
+        Write-Log -Message "Failed to setup NVIDIA Profile Inspector: $($_.Exception.Message)" -Level WARN
     }
 }
 function Invoke-HardwareVendorTweaks {
@@ -1329,7 +1600,7 @@ function Show-TweakGui {
         <Button Name="BtnRunAll" Style="{StaticResource ActionButton}" Background="{StaticResource AccentBrush}" Height="80">
           <StackPanel>
             <TextBlock Text="RUN ALL ELITE TWEAKS" FontSize="20" HorizontalAlignment="Center"/>
-            <TextBlock Text="Full System Overhaul • CS2 Pro Optimized • FACEIT Safe" FontSize="12" Opacity="0.8" FontWeight="Normal" HorizontalAlignment="Center" Margin="0,6,0,0"/>
+            <TextBlock Text="Full System Overhaul - CS2 Pro Optimized - FACEIT Safe" FontSize="12" Opacity="0.8" FontWeight="Normal" HorizontalAlignment="Center" Margin="0,6,0,0"/>
           </StackPanel>
         </Button>
         <TextBlock Text="One-click professional optimization. 100% FACEIT SAFE - this script does NOT touch VBS or Core Isolation. Includes the 'Ultimate Performance' power plan, elite BCD tuning, MPO disabling, and advanced NIC profiles for a world-class experience." 
@@ -1417,15 +1688,19 @@ function Show-TweakGui {
     }
     $btnRunAll.Add_Click({
         Set-UiBusy -Busy $true -Status 'Applying Elite Optimization...'
-        $script:EsportsOnly = $false
-        $script:IncludeRiskyTweaks = $false
-        $script:SkipRestorePoint = ($chkSkip.IsChecked -eq $true)
-        Invoke-Windows11TweakScript
-        $window.Dispatcher.Invoke({
-            $txtScore.Text = "100%"
-            $txtScore.Foreground = [Windows.Media.Brushes]::LimeGreen
-        })
-        Set-UiBusy -Busy $false -Status 'Ready'
+        
+        # UI non-blocking approach
+        $window.Dispatcher.Invoke([Action]{
+            $script:EsportsOnly = $false
+            $script:IncludeRiskyTweaks = $false
+            $script:SkipRestorePoint = ($chkSkip.IsChecked -eq $true)
+            Invoke-Windows11TweakScript -NoGui
+            $window.Dispatcher.Invoke({
+                $txtScore.Text = "100%"
+                $txtScore.Foreground = [Windows.Media.Brushes]::LimeGreen
+            })
+            Set-UiBusy -Busy $false -Status 'Ready'
+        }, [System.Windows.Threading.DispatcherPriority]::Background)
     })
     $btnOpenLog.Add_Click({
         try { Start-Process explorer.exe $Script:DesktopPath } catch {}
@@ -1457,20 +1732,65 @@ function Invoke-UndoTweaks {
     param()
     Write-Log -Message 'Rolling back Elite Tweaks to Windows Defaults...' -Level WARN
     try {
+        # 1. Revert Registry Tweaks (Network & System)
+        Remove-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters' -Name 'TcpAckFrequency'
+        Remove-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters' -Name 'TcpNoDelay'
+        Remove-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters' -Name 'TcpDelAckTicks'
+        Remove-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters' -Name 'MaxUserPort'
+        Remove-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters' -Name 'TcpTimedWaitDelay'
+        Remove-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters' -Name 'DefaultTTL'
+        Remove-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters' -Name 'TcpWindowSize'
+        Remove-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters' -Name 'GlobalMaxTcpWindowSize'
+        Remove-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile' -Name 'NetworkThrottlingIndex'
+        Remove-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Psched' -Name 'NonBestEffortLimit'
+        Remove-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters' -Name 'IRPStackSize'
+        Remove-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters' -Name 'Size'
+
+        # 2. Revert Netsh TCP Globals
+        try {
+            & netsh int tcp set global autotuninglevel=normal | Out-Null
+            & netsh int tcp set global rss=enabled | Out-Null
+            & netsh int tcp set global rsc=enabled | Out-Null
+            & netsh int tcp set global netqos=default | Out-Null
+            & netsh int tcp set heuristics default | Out-Null
+            & netsh int tcp set global ecncapability=default | Out-Null
+            & netsh int tcp set global timestamps=default | Out-Null
+        } catch {}
+
+        # 3. Revert NIC Properties (Best Effort)
+        try {
+            $adapters = Get-NetAdapter -ErrorAction SilentlyContinue | Where-Object { $_.HardwareInterface -eq $true }
+            foreach ($nic in $adapters) {
+                try { Enable-NetAdapterRsc -Name $nic.Name -ErrorAction SilentlyContinue | Out-Null } catch {}
+                # Note: We don't force-enable all offloads as defaults vary by NIC vendor.
+                # Re-enabling Flow Control and Interrupt Moderation is generally safe for default behavior.
+                try { Set-NetAdapterAdvancedProperty -Name $nic.Name -DisplayName "Interrupt Moderation" -DisplayValue "Enabled" -NoRestart -ErrorAction SilentlyContinue | Out-Null } catch {}
+                try { Set-NetAdapterAdvancedProperty -Name $nic.Name -DisplayName "Flow Control" -DisplayValue "Rx & Tx Enabled" -NoRestart -ErrorAction SilentlyContinue | Out-Null } catch {}
+            }
+        } catch {}
+
+        # 4. Remove QoS Policies
+        try {
+            $names = @('CS2-EF-UDP','CS2-EF-UDP2','CS2-EF-UDP3','CS2-EF-APP')
+            foreach ($n in $names) {
+                try { Get-NetQosPolicy -Name $n -ErrorAction Stop | Remove-NetQosPolicy -Confirm:$false } catch {}
+            }
+        } catch {}
+
+        # 5. Revert Scheduling & Priority
         Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\PriorityControl' -Name 'Win32PrioritySeparation' -Value 2 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Restore default process scheduling'
         $mmcssPath = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\Games'
         Set-RegistryValueSafe -Path $mmcssPath -Name 'Priority' -Value 2 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
         Set-RegistryValueSafe -Path $mmcssPath -Name 'GPU Priority' -Value 8 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
         Set-RegistryValueSafe -Path $mmcssPath -Name 'Scheduling Category' -Value 'Medium' -Type ([Microsoft.Win32.RegistryValueKind]::String)
         Set-RegistryValueSafe -Path $mmcssPath -Name 'SFIO Priority' -Value 'Normal' -Type ([Microsoft.Win32.RegistryValueKind]::String)
-        Remove-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters' -Name 'TcpAckFrequency'
-        Remove-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters' -Name 'TcpNoDelay'
-        Remove-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters' -Name 'MaxUserPort'
-        Remove-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters' -Name 'TcpTimedWaitDelay'
+
+        # 6. Revert System Responsiveness
         Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control' -Name 'WaitToKillServiceTimeout' -Value '5000' -Type ([Microsoft.Win32.RegistryValueKind]::String)
         Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\Control Panel\Desktop' -Name 'HungAppTimeout' -Value '5000' -Type ([Microsoft.Win32.RegistryValueKind]::String)
         Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\Control Panel\Desktop' -Name 'WaitToKillAppTimeout' -Value '5000' -Type ([Microsoft.Win32.RegistryValueKind]::String)
         Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\Control Panel\Desktop' -Name 'AutoEndTasks' -Value '0' -Type ([Microsoft.Win32.RegistryValueKind]::String)
+
         Write-Log -Message 'Core tweaks rolled back. Please restart your PC for full effect.' -Level SUCCESS
     } catch {
         Write-Log -Message "Failed to rollback tweaks: $($_.Exception.Message)" -Level ERROR
@@ -1489,13 +1809,24 @@ function Invoke-AppxDebloat {
         "Microsoft.GamingApp", "Microsoft.XboxSpeechToTextOverlay",
         "Microsoft.DevHome", "Microsoft.OutlookForWindows"
     )
-    foreach ($app in $bloatware) {
-        try {
-            Get-AppxPackage -Name $app -AllUsers -ErrorAction SilentlyContinue | Remove-AppxPackage -AllUsers -ErrorAction SilentlyContinue
-            Write-Log -Message "Removed Appx: $app" -Level SUCCESS
-        } catch {
-            Write-Log -Message "Failed to remove $app or not found." -Level INFO
+    
+    try {
+        # Optimization: Query once, filter in memory
+        $allPackages = Get-AppxPackage -AllUsers -ErrorAction SilentlyContinue
+        
+        foreach ($app in $bloatware) {
+            $target = $allPackages | Where-Object { $_.Name -eq $app }
+            if ($target) {
+                try {
+                    $target | Remove-AppxPackage -AllUsers -ErrorAction SilentlyContinue
+                    Write-Log -Message "Removed Appx: $app" -Level SUCCESS
+                } catch {
+                    Write-Log -Message "Failed to remove Appx: $app" -Level WARN
+                }
+            }
         }
+    } catch {
+        Write-Log -Message "Appx debloat failed: $($_.Exception.Message)" -Level WARN
     }
 }
 function Invoke-SystemDebloat {
@@ -1559,7 +1890,10 @@ function Invoke-Windows11TweakScript {
     Write-Log -Message 'Applying Complete Professional Optimization Suite (FACEIT Safe)...' -Level INFO
     Invoke-EliteBcdTuning
     Invoke-UltimatePowerPlan
-    Invoke-AdvancedNicProfiles
+    Invoke-UnifiedNetworkTweaks
+    Invoke-EsportsSystemTweaks
+    Invoke-CpuVendorOptimization
+    Invoke-CpuAffinityOptimization
     Invoke-GpuShaderManagement
     Invoke-EliteSystemCleaner
     Invoke-ProfessionalServiceDebloat
@@ -1578,13 +1912,10 @@ function Invoke-Windows11TweakScript {
     Invoke-ElitePerformanceTweaks
     Invoke-EliteMemoryManagement
     Invoke-PerformanceTweaks
-    Invoke-AdvancedNetworkJitterTuning
     Invoke-AdvancedNetworkPowerTuning
     Invoke-DwmLatencyTuning
     Invoke-EliteIOTweaks
-    Invoke-EsportsLowLatencyTweaks
     Invoke-CS2ProcessTuning
-    Invoke-HitRegistrationTweaks
     Invoke-AdvancedSystemResponsiveness
     Invoke-MsiModeOptimization
     Invoke-HardwareVendorTweaks
