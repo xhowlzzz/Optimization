@@ -1694,7 +1694,7 @@ function Show-TweakGui {
             $script:EsportsOnly = $false
             $script:IncludeRiskyTweaks = $false
             $script:SkipRestorePoint = ($chkSkip.IsChecked -eq $true)
-            Invoke-Windows11TweakScript -NoGui
+            Invoke-Windows11TweakScript
             $window.Dispatcher.Invoke({
                 $txtScore.Text = "100%"
                 $txtScore.Foreground = [Windows.Media.Brushes]::LimeGreen
