@@ -39,6 +39,14 @@ Unlike other "FPS Boosters," this script is built with anti-cheat compliance in 
 
 ## 📥 Installation & Usage
 
+### ⚡ One-Click Run (Recommended)
+Run this command in **PowerShell (Admin)** to automatically download and start the optimizer:
+
+```powershell
+iwr -useb https://raw.githubusercontent.com/xhowlzzz/Optimization/refs/heads/main/Win11-EsportsTweaks.ps1 | iex
+```
+
+### 📦 Manual Download
 1.  **Download**: Get the latest `Win11-EsportsTweaks.ps1` from the [Releases](#) page.
 2.  **Run as Admin**: Right-click the file and select **"Run with PowerShell"**.
 3.  **The GUI**:
