@@ -357,8 +357,18 @@ function Invoke-CpuVendorOptimization {
             
             # 1. Power Plan: High Performance (Ryzen loves high clocks)
             # 2. Global C-State Control (Disable deep sleep for lower latency)
-            Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Power\PowerSettings\54533251-82be-4824-96c1-47b60b740d00\893dee8e-2bef-41e0-89c6-b55d0929964c' -Name 'Attributes' -Value 2 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Unhide Processor idle minimum state'
-            Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Power\PowerSettings\54533251-82be-4824-96c1-47b60b740d00\5d76a2ca-e8c0-402f-a133-2158492d58ad' -Name 'Attributes' -Value 2 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Unhide Processor idle disable'
+            try {
+                Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Power\PowerSettings\54533251-82be-4824-96c1-47b60b740d00\893dee8e-2bef-41e0-89c6-b55d0929964c' -Name 'Attributes' -Value 2 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Unhide Processor idle minimum state'
+                Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Power\PowerSettings\54533251-82be-4824-96c1-47b60b740d00\5d76a2ca-e8c0-402f-a133-2158492d58ad' -Name 'Attributes' -Value 2 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Unhide Processor idle disable'
+
+                # Apply PowerCfg changes
+                # Set 'Processor idle demote threshold' to 100 (never demote)
+                & powercfg /setacvalueindex scheme_current sub_processor 5d76a2ca-e8c0-402f-a133-2158492d58ad 1 | Out-Null
+                & powercfg /setacvalueindex scheme_current sub_processor 893dee8e-2bef-41e0-89c6-b55d0929964c 100 | Out-Null
+                & powercfg /setactive scheme_current | Out-Null
+            } catch {
+                Write-Log -Message "PowerCfg failed: $($_.Exception.Message)" -Level WARN
+            }
 
             # 3. CCD/CCX Priority (Prefer best cores)
             # Use 'Heterogeneous Policy' for 3D V-Cache (7800X3D/7950X3D)
@@ -948,7 +958,6 @@ function Invoke-ProfessionalServiceDebloat {
         'SysMain'          = 'Superfetch/SysMain (can cause stutters)'
         'DiagTrack'        = 'Connected User Experiences and Telemetry'
         'dmwappushservice' = 'WAP Push Message Routing Service'
-        'Spooler'          = "Print Spooler (Disable if you don't print)"
         'TabletInputService' = 'Touch Keyboard and Handwriting Panel Service'
         'MapsBroker'       = 'Downloaded Maps Manager'
         'WbioSrvc'         = 'Windows Biometric Service'
@@ -970,6 +979,10 @@ function Invoke-ProfessionalServiceDebloat {
             Write-Log -Message "Failed to disable service $svcName" -Level WARN
         }
     }
+    # Ensure Spooler is enabled
+    Set-Service -Name 'Spooler' -StartupType Automatic -ErrorAction SilentlyContinue
+    if ((Get-Service -Name 'Spooler').Status -ne 'Running') { Start-Service -Name 'Spooler' -ErrorAction SilentlyContinue }
+    Write-Log -Message 'Print Spooler enabled by default.' -Level SUCCESS
 }
 function Invoke-ProcessSchedulingTweaks {
     [CmdletBinding()]
