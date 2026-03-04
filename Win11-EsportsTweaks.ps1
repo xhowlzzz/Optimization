@@ -1,6 +1,5 @@
 param(
     [switch]$EsportsOnly,
-    [switch]$NoGui,
     [switch]$IncludeRiskyTweaks,
     [switch]$SkipRestorePoint
 )
@@ -51,7 +50,6 @@ function Ensure-RunningAsAdministrator {
             '-File', "`"$PSCommandPath`""
         )
         if ($EsportsOnly) { $argumentList += '-EsportsOnly' }
-        if ($NoGui) { $argumentList += '-NoGui' }
         if ($IncludeRiskyTweaks) { $argumentList += '-IncludeRiskyTweaks' }
         if ($SkipRestorePoint) { $argumentList += '-SkipRestorePoint' }
         $psi = New-Object System.Diagnostics.ProcessStartInfo
@@ -1922,8 +1920,4 @@ function Invoke-Windows11TweakScript {
     Invoke-OtherTweaks -IncludeRiskyTweaks:$true
     Write-Log -Message 'All tweaks applied successfully. Your PC is now optimized for the best possible experience.' -Level SUCCESS
 }
-if ($NoGui) {
-    Invoke-Windows11TweakScript
-} else {
-    Show-TweakGui
-}
+Show-TweakGui
