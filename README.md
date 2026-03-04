@@ -1,6 +1,6 @@
 # ⚡ Win11-EsportsTweaks (CS2 Ultimate Optimizer)
 
-A professional-grade, open-source PowerShell optimization suite designed specifically for **Counter-Strike 2** and competitive gaming on **Windows 11 (24H2 Ready)**. 
+A professional-grade, open-source PowerShell optimization suite designed specifically for **Counter-Strike 2** and competitive gaming on **Windows 11 (24H2+ Ready)**. 
 
 This script applies hundreds of "paid-tier" registry and system tweaks to maximize FPS, eliminate micro-stutters, and ensure the lowest possible input latency—all while remaining **FACEIT Safe** and keeping critical security features intact.
 
