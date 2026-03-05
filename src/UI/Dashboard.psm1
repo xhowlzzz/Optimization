@@ -10,7 +10,7 @@ function Show-Dashboard {
         if (-not (Test-Path $xamlPath)) { throw "MainWindow.xaml not found at $xamlPath" }
         
         # File Integrity Check
-        $expectedHash = "58C20E550F46E6D7008F95245FEF84E86890A3D9C93B860A04764D1B8D0619E8"
+        $expectedHash = "9F68D2ED0E825B27C3FA1AFFDEFC138CFED58945CC47299D1A95691C965A8C06"
         $currentHash = (Get-FileHash $xamlPath -Algorithm SHA256).Hash
         if ($currentHash -ne $expectedHash) {
             Write-Log -Message "CORRUPT: MainWindow.xaml hash mismatch. Expected $expectedHash, got $currentHash" -Level WARN -Component "UI"
@@ -213,7 +213,7 @@ function Show-Dashboard {
         }
     }
 
-    $c.BtnDash.Add_Click({ & $navAction $c.BtnDash $c.ViewDash "Titan Dashboard" })
+    $c.BtnDash.Add_Click({ & $navAction $c.BtnDash $c.ViewDash "IlumnulOS Dashboard" })
     $c.BtnTweaks.Add_Click({ & $navAction $c.BtnTweaks $c.ViewTweaks "Performance Tweaks" })
     $c.BtnBench.Add_Click({ & $navAction $c.BtnBench $c.ViewBench "Benchmarks" })
     $c.BtnLogs.Add_Click({ & $navAction $c.BtnLogs $c.ViewLogs "Activity Logs" })
@@ -308,7 +308,7 @@ function Show-Dashboard {
             $c.BtnRun.Background = [System.Windows.Media.Brushes]::Green
             Start-Sleep -Seconds 2
             $c.BtnRun.IsEnabled = $true
-            $c.BtnRun.Content = "RUN TITAN OPTIMIZATION"
+            $c.BtnRun.Content = "RUN ILUMNULOS OPTIMIZATION"
             $c.BtnRun.Background = [System.Windows.Media.Brushes]::Blue
         }, [System.Windows.Threading.DispatcherPriority]::Background)
     })
