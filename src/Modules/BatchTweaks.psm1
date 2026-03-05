@@ -64,6 +64,18 @@ function Invoke-PerformanceBatch {
     # Increase MFT Zone (Better for many small files)
     fsutil behavior set mftzone 2 | Out-Null
     
+    # --- CPU & Kernel Optimizations (High Performance) ---
+    # Disable Spectre & Meltdown Mitigations (Warning: Security Risk, High Performance Reward)
+    Set-RegistryValueSafe -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name "FeatureSettingsOverride" -Value 3 -Type DWord
+    Set-RegistryValueSafe -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name "FeatureSettingsOverrideMask" -Value 3 -Type DWord
+    
+    # Multimedia Scheduling - NoLazyMode
+    Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile" -Name "NoLazyMode" -Value 1 -Type DWord
+    
+    # Memory Management - L2 Cache & Images
+    Set-RegistryValueSafe -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name "SecondLevelDataCache" -Value 0 -Type DWord # 0 = Auto
+    Set-RegistryValueSafe -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name "MoveImages" -Value 0 -Type DWord
+    
     # --- BCD Tweaks (Boot Configuration) ---
     # Disable Boot Screen Animation
     bcdedit /set bootux disabled | Out-Null
