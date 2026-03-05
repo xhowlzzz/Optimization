@@ -345,7 +345,7 @@ function Show-Dashboard {
             Invoke-RemoveWindowsAI
             Invoke-InputOptimization
             Invoke-AllTweaks
-            Invoke-AncelTweaks
+            Invoke-PerformanceBatch
             Invoke-EndOptimization
             
             $c.BtnRun.Content = "OPTIMIZATION COMPLETE"
