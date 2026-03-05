@@ -727,7 +727,20 @@ function Invoke-PerformanceBatch {
         "*Microsoft.549981C3F5F10*" # Cortana
     )
     foreach ($app in $appsToRemove) {
-        Get-AppxPackage -AllUsers $app -ErrorAction SilentlyContinue | Remove-AppxPackage -AllUsers -ErrorAction SilentlyContinue
+        try {
+            $package = Get-AppxPackage -AllUsers $app -ErrorAction Stop
+            if ($package) {
+                # Skip protected system apps that can't be removed via Appx (like PeopleExperienceHost)
+                if ($package.Name -match "PeopleExperienceHost|ShellExperienceHost|StartMenuExperienceHost") {
+                    Write-Log "Skipping protected app: $($package.Name)" -Level WARN
+                    continue
+                }
+                $package | Remove-AppxPackage -AllUsers -ErrorAction Stop
+                Write-Log "Removed Appx: $app" -Level SUCCESS
+            }
+        } catch {
+            Write-Log "Failed/Skipped Appx removal for '$app': $_" -Level WARN
+        }
     }
 
     # 63. Cortana & Search Tweaks
