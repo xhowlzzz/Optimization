@@ -4,7 +4,7 @@
 
 **The definitive, professional-grade Windows 11 optimization suite for competitive gaming.**
 
-[![Build Status](https://img.shields.io/github/workflow/status/xhowlzzz/Optimization/Build)](https://github.com/xhowlzzz/Optimization/actions)
+[![Build Status](https://github.com/xhowlzzz/Optimization/actions/workflows/build.yml/badge.svg)](https://github.com/xhowlzzz/Optimization/actions)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows%2011-0078d7.svg)](https://www.microsoft.com/windows)
 [![Game](https://img.shields.io/badge/game-CS2%20%7C%20Valorant%20%7C%20Apex-orange.svg)]()
@@ -75,4 +75,4 @@ We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guid
 Distributed under the MIT License. See `LICENSE` for more information.
 
 ---
-*Built with ❤️ for the Esports Community.*
+*Created by Howl for the CS2 Community.*
