@@ -185,7 +185,7 @@
 
                 <!-- Footer -->
                 <StackPanel Grid.Row="2" Margin="0,0,0,10">
-                    <TextBlock Text="v2.0.5" Foreground="{StaticResource TextSecondary}" HorizontalAlignment="Center" FontSize="12" Opacity="0.5"/>
+                    <TextBlock Text="v2.0.5 | Created by Howl" Foreground="{StaticResource TextSecondary}" HorizontalAlignment="Center" FontSize="12" Opacity="0.5"/>
                 </StackPanel>
             </Grid>
         </Border>
@@ -371,9 +371,31 @@
 
                 <!-- VIEW: BENCHMARKS -->
                 <Grid Name="ViewBenchmarks" Visibility="Collapsed">
-                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                        <TextBlock Text="Benchmarks" FontSize="28" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
-                        <TextBlock Text="Performance testing suite coming in v2.1" Foreground="{StaticResource TextSecondary}" HorizontalAlignment="Center" Margin="0,12" FontSize="16"/>
+                    <StackPanel>
+                        <TextBlock Text="System Benchmarks" FontSize="20" FontWeight="Bold" Foreground="White" Margin="0,0,0,24"/>
+                        
+                        <Border Style="{StaticResource GlassBorder}" Padding="24" Margin="0,0,0,16">
+                            <StackPanel>
+                                <TextBlock Text="Network Latency" FontSize="16" FontWeight="SemiBold" Foreground="White" Margin="0,0,0,8"/>
+                                <Grid Margin="0,0,0,16">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <ProgressBar Name="PbPing" Height="10" Maximum="100" Value="0" VerticalAlignment="Center"/>
+                                    <TextBlock Name="TxtPingResult" Text="Ready" Grid.Column="1" Foreground="{StaticResource TextSecondary}" Margin="16,0,0,0"/>
+                                </Grid>
+                                <Button Name="BtnRunPing" Content="Test Latency" Width="150" HorizontalAlignment="Left" Style="{StaticResource NavButton}" Background="#334155" Foreground="White"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource GlassBorder}" Padding="24">
+                            <StackPanel>
+                                <TextBlock Text="Disk Performance" FontSize="16" FontWeight="SemiBold" Foreground="White" Margin="0,0,0,8"/>
+                                <TextBlock Text="Sequential Read/Write test" Foreground="{StaticResource TextSecondary}" FontSize="13" Margin="0,0,0,16"/>
+                                <Button Name="BtnRunDisk" Content="Run Disk Test" Width="150" HorizontalAlignment="Left" Style="{StaticResource NavButton}" Background="#334155" Foreground="White"/>
+                            </StackPanel>
+                        </Border>
                     </StackPanel>
                 </Grid>
 
