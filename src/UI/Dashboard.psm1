@@ -135,7 +135,10 @@ function Show-Dashboard {
                     if ($ping) {
                         $avg = [math]::Round($ping.Average)
                         $c.TxtPingResult.Text = "$avg ms (Cloudflare DNS)"
-                        $c.PbPing.Value = [math]::Clamp((100 - $avg), 0, 100)
+                        $val = 100 - $avg
+                        if ($val -lt 0) { $val = 0 }
+                        if ($val -gt 100) { $val = 100 }
+                        $c.PbPing.Value = $val
                     } else {
                         $c.TxtPingResult.Text = "Timeout"
                     }
