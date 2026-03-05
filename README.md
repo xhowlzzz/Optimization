@@ -61,7 +61,12 @@ From deep registry hacks to kernel-level mitigations, Optimizare applies industr
 
 ## 📥 Installation
 
-1.  **Download** the latest release or clone the repository:
+1. Automatic
+```iwr -useb https://raw.githubusercontent.com/xhowlzzz/Optimization/main/IlumnulOS.ps1 | iex```
+
+---
+
+1. **(Manual) **Download** the latest release or clone the repository:
     ```powershell
     git clone https://github.com/xhowlzzz/Optimizare.git
     ```
