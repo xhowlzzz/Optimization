@@ -175,18 +175,6 @@ try {
 
     Write-Log "UI initialized." -Level INFO
 
-    # --- AUTO-APPLY WALLPAPER ---
-    # Apply the background immediately on startup as requested
-    try {
-        if (Get-Command "Invoke-WallpaperApply" -ErrorAction SilentlyContinue) {
-            Invoke-WallpaperApply
-        } else {
-            Write-Log "Invoke-WallpaperApply not found. Skipping auto-wallpaper." -Level WARN
-        }
-    } catch {
-        Write-Log "Failed to apply auto-wallpaper: $_" -Level WARN
-    }
-
     # Launch
     Show-Dashboard
 
