@@ -142,6 +142,12 @@ function Invoke-AdvancedDebloat {
     Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "LaunchTo" -Value 1 -Type DWord
     # Disable "Snap Assist"
     Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "SnapAssist" -Value 0 -Type DWord
+    # Restore "Classic Context Menu" (Windows 10 Style)
+    $clsidKey = "HKCU:\Software\Classes\CLSID\{86ca1aa0-34aa-4e8b-a509-50c905bae2a2}\InprocServer32"
+    if (-not (Test-Path $clsidKey)) { New-Item -Path $clsidKey -Force | Out-Null }
+    Set-ItemProperty -Path $clsidKey -Name "(default)" -Value "" -ErrorAction SilentlyContinue
+    # Disable "Desktop Stickers"
+    Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Stickers" -Name "EnableStickers" -Value 0 -Type DWord
     
     # 2. Performance & System
     # Disable Background Apps
@@ -168,7 +174,12 @@ function Invoke-AdvancedDebloat {
     # Disable "Inking & Typing Personalization"
     Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\InputPersonalization" -Name "RestrictImplicitInkCollection" -Value 1 -Type DWord
     Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\InputPersonalization" -Name "RestrictImplicitTextCollection" -Value 1 -Type DWord
-
+    # Disable "Device Usage" (Gaming/School setup prompts)
+    Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\CloudExperienceHost\Intent\PersonalDataV2" -Name "PersonalDataV2" -Value 0 -Type DWord
+    # Disable "Clipboard History & Cloud Sync"
+    Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Clipboard" -Name "EnableClipboardHistory" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Clipboard" -Name "AllowCrossDeviceClipboard" -Value 0 -Type DWord
+    
     # 4. Updates & Delivery Optimization
     # Disable Delivery Optimization (P2P Updates)
     Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DeliveryOptimization" -Name "DODownloadMode" -Value 0 -Type DWord
