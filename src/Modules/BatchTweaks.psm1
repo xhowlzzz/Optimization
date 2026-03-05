@@ -707,24 +707,87 @@ function Invoke-PerformanceBatch {
     }
     Set-RegistryValueSafe -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Lsa\Credssp" -Name "DebugLogLevel" -Value 0 -Type DWord
 
+    # 62. Remove Unnecessary Appx Packages (Ancel)
+    $appsToRemove = @(
+        "*3DBuilder*", "*bing*", "*bingfinance*", "*bingsports*", "*BingWeather*",
+        "*CommsPhone*", "*Drawboard PDF*", "*Facebook*", "*Getstarted*", "*Microsoft.Messaging*",
+        "*MicrosoftOfficeHub*", "*Office.OneNote*", "*OneNote*", "*people*", "*SkypeApp*",
+        "*solit*", "*Sway*", "*Twitter*", "*WindowsAlarms*", "*WindowsPhone*",
+        "*WindowsMaps*", "*WindowsFeedbackHub*", "*WindowsSoundRecorder*", "*windowscommunicationsapps*", "*zune*",
+        "*Microsoft.549981C3F5F10*" # Cortana
+    )
+    foreach ($app in $appsToRemove) {
+        Get-AppxPackage -AllUsers $app -ErrorAction SilentlyContinue | Remove-AppxPackage -AllUsers -ErrorAction SilentlyContinue
+    }
+
+    # 63. Cortana & Search Tweaks
+    $searchKey = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search"
+    Set-RegistryValueSafe -Path $searchKey -Name "AllowCortana" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path $searchKey -Name "AllowCloudSearch" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path $searchKey -Name "AllowCortanaAboveLock" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path $searchKey -Name "AllowSearchToUseLocation" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path $searchKey -Name "ConnectedSearchUseWeb" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path $searchKey -Name "ConnectedSearchUseWebOverMeteredConnections" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path $searchKey -Name "DisableWebSearch" -Value 0 -Type DWord # Ancel sets 0? Usually 1 disables it. Keeping faithful to source.
+
+    # 64. OneDrive Disable & Cleanup
+    if (Test-Path "$env:SYSTEMROOT\SYSWOW64\ONEDRIVESETUP.EXE") {
+        Start-Process -FilePath "$env:SYSTEMROOT\SYSWOW64\ONEDRIVESETUP.EXE" -ArgumentList "/UNINSTALL" -Wait -NoNewWindow -ErrorAction SilentlyContinue
+    }
+    Remove-Item -Path "C:\OneDriveTemp" -Recurse -Force -ErrorAction SilentlyContinue
+    Remove-Item -Path "$env:USERPROFILE\OneDrive" -Recurse -Force -ErrorAction SilentlyContinue
+    Remove-Item -Path "$env:LOCALAPPDATA\Microsoft\OneDrive" -Recurse -Force -ErrorAction SilentlyContinue
+    Remove-Item -Path "$env:PROGRAMDATA\Microsoft OneDrive" -Recurse -Force -ErrorAction SilentlyContinue
+    
+    Set-RegistryValueSafe -Path "HKCR:\CLSID\{018D5C66-4533-4307-9B53-224DE2ED1FE6}\ShellFolder" -Name "Attributes" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path "HKCR:\Wow6432Node\CLSID\{018D5C66-4533-4307-9B53-224DE2ED1FE6}\ShellFolder" -Name "Attributes" -Value 0 -Type DWord
+    
+    $odPol = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\OneDrive"
+    Set-RegistryValueSafe -Path $odPol -Name "DisableFileSync" -Value 1 -Type DWord
+    Set-RegistryValueSafe -Path $odPol -Name "DisableFileSyncNGSC" -Value 1 -Type DWord
+    Set-RegistryValueSafe -Path $odPol -Name "DisableMeteredNetworkFileSync" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path $odPol -Name "DisableLibrariesDefaultSaveToOneDrive" -Value 0 -Type DWord
+
+    # 65. PC Cleaner (Temp/Prefetch/Logs)
+    Write-Log "Running PC Cleaner..." -Level INFO
+    $pathsToClean = @(
+        "C:\Windows\Temp",
+        "C:\Windows\Prefetch",
+        "$env:TEMP",
+        "$env:SystemDrive\Recycled",
+        "$env:SystemDrive\`$Recycle.Bin",
+        "$env:LOCALAPPDATA\Microsoft\Windows\Explorer" # Thumbcache
+    )
+    foreach ($p in $pathsToClean) {
+        if (Test-Path $p) {
+            Get-ChildItem -Path $p -Recurse -Force -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+    # Specific extensions on system drive (Careful with this one!)
+    # Skipping aggressive root drive wildcard deletions (*.tmp, *.log) to avoid accidental system damage in PowerShell.
+    # Focusing on safe log directories:
+    Remove-Item -Path "$env:SystemRoot\Logs\CBS\CBS.log" -Force -ErrorAction SilentlyContinue
+    Remove-Item -Path "$env:SystemRoot\Logs\DISM\DISM.log" -Force -ErrorAction SilentlyContinue
+
     # --- Service Disables (Expanded) ---
     $servicesToDisable = @(
-        "DiagTrack", # Connected User Experiences and Telemetry
-        "dmwappushservice", # WAP Push Message Routing Service
-        "diagnosticshub.standardcollector.service", # Microsoft (R) Diagnostics Hub Standard Collector Service
-        "SysMain", # Superfetch
-        "MapsBroker",
-        "WSearch", # Windows Search (Optional: Add back if needed)
-        "Spooler", # Print Spooler (Optional: Warning - disables printing)
-        "WbioSrvc", # Biometric
-        "TouchKeyboardAndHandwritingPanelService", # TabletInputService
-        "RemoteRegistry",
-        "TermService", # Remote Desktop
-        "SensorService",
-        "SensorDataService",
-        "Fax",
-        "RetailDemo",
-        "WalletService"
+        "TapiSrv", "FontCache3.0.0.0", "WpcMonSvc", "SEMgrSvc", "PNRPsvc", "LanmanWorkstation",
+        "WEPHOSTSVC", "p2psvc", "p2pimsvc", "PhoneSvc", "wuauserv", "Wecsvc", "SensorDataService",
+        "SensrSvc", "perceptionsimulation", "StiSvc", "OneSyncSvc", "WMPNetworkSvc", "autotimesvc",
+        "edgeupdatem", "MicrosoftEdgeElevationService", "ALG", "QWAVE", "IpxlatCfgSvc", "icssvc",
+        "DusmSvc", "MapsBroker", "edgeupdate", "SensorService", "shpamsvc", "svsvc", "SysMain",
+        "MSiSCSI", "Netlogon", "CscService", "ssh-agent", "AppReadiness", "tzautoupdate", "NfsClnt",
+        "wisvc", "defragsvc", "SharedRealitySvc", "RetailDemo", "lltdsvc", "TrkWks", "CryptSvc",
+        "DiagTrack", "diagsvc", "DPS", "WdiServiceHost", "WdiSystemHost", "dmwappushsvc",
+        "TroubleshootingSvc", "DsSvc", "FrameServer", "FontCache", "InstallService", "OSRSS",
+        "sedsvc", "SENS", "TabletInputService", "Themes", "ConsentUxUserSvc", "DevicePickerUserSvc",
+        "UnistoreSvc", "DevicesFlowUserSvc", "MessagingService", "CDPUserSvc", "PimIndexMaintenanceSvc",
+        "BcastDVRUserService", "UserDataSvc", "DeviceAssociationBrokerSvc", "cbdhsvc", "CaptureService",
+        "lfsvc", "diagnosticshub.standardcollector.service", "SecurityHealthService",
+        "Spooler", "WbioSrvc", "RemoteRegistry", "TermService", "Fax", "WalletService"
+    )
+    # Note: 'lfsvc' needs special handling for its sub-key status, done below separately if needed.
+    Set-RegistryValueSafe -Path "HKLM:\SYSTEM\CurrentControlSet\Services\lfsvc\Service\Configuration" -Name "Status" -Value 0 -Type DWord
     )
     foreach ($svc in $servicesToDisable) {
         if (Get-Service -Name $svc -ErrorAction SilentlyContinue) {
