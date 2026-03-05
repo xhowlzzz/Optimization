@@ -228,6 +228,41 @@ function Invoke-PerformanceBatch {
     # 2 (Foreground shorter) | 6 (Variable length) - Favors games/foreground apps
     Set-RegistryValueSafe -Path "HKLM:\SYSTEM\CurrentControlSet\Control\PriorityControl" -Name "Win32PrioritySeparation" -Value 38 -Type DWord
     
+    # 29. CSRSS Realtime Priority (Graphics/Input Handling)
+    # WARNING: Can cause instability if set incorrectly. Using 'Realtime' (0x00000080) for gaming.
+    $csrss = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\csrss.exe\PerfOptions"
+    if (-not (Test-Path $csrss)) { New-Item -Path $csrss -Force | Out-Null }
+    Set-RegistryValueSafe -Path $csrss -Name "CpuPriorityClass" -Value 4 -Type DWord # 4 = Realtime (High Risk/High Reward)
+    Set-RegistryValueSafe -Path $csrss -Name "IoPriority" -Value 3 -Type DWord # 3 = High
+    
+    # 30. DirectX Latency Tolerance
+    Set-RegistryValueSafe -Path "HKLM:\SYSTEM\CurrentControlSet\Control\GraphicsDrivers" -Name "TdrDelay" -Value 10 -Type DWord # Prevent TDR crashes
+    Set-RegistryValueSafe -Path "HKLM:\SYSTEM\CurrentControlSet\Control\GraphicsDrivers" -Name "TdrDdiDelay" -Value 10 -Type DWord
+    
+    # 31. Deep Network Optimization (TCP Parameters)
+    $tcpKey = "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters"
+    Set-RegistryValueSafe -Path $tcpKey -Name "MaxFreeTcbs" -Value 65535 -Type DWord
+    Set-RegistryValueSafe -Path $tcpKey -Name "MaxHashTableSize" -Value 65536 -Type DWord
+    Set-RegistryValueSafe -Path $tcpKey -Name "TcpMaxDataRetransmissions" -Value 5 -Type DWord
+    Set-RegistryValueSafe -Path $tcpKey -Name "SackOpts" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path $tcpKey -Name "Tcp1323Opts" -Value 0 -Type DWord # Disable timestamps/scaling for raw latency
+    Set-RegistryValueSafe -Path $tcpKey -Name "DefaultTTL" -Value 64 -Type DWord
+    Set-RegistryValueSafe -Path $tcpKey -Name "EnablePMTUBHDetect" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path $tcpKey -Name "EnablePMTUDiscovery" -Value 1 -Type DWord
+    Set-RegistryValueSafe -Path $tcpKey -Name "TcpWindowSize" -Value 64240 -Type DWord
+    
+    # 32. Disable Sticky Keys & Filter Keys Shortcuts (Gaming Interruption)
+    $sticky = "HKCU:\Control Panel\Accessibility\StickyKeys"
+    Set-RegistryValueSafe -Path $sticky -Name "Flags" -Value "506" -Type String
+    $filter = "HKCU:\Control Panel\Accessibility\Keyboard Response"
+    Set-RegistryValueSafe -Path $filter -Name "Flags" -Value "122" -Type String
+    $toggle = "HKCU:\Control Panel\Accessibility\ToggleKeys"
+    Set-RegistryValueSafe -Path $toggle -Name "Flags" -Value "58" -Type String
+    
+    # 33. Disable SmartScreen (Registry)
+    Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer" -Name "SmartScreenEnabled" -Value "Off" -Type String
+    Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\System" -Name "EnableSmartScreen" -Value 0 -Type DWord
+    
     # --- Service Disables (Expanded) ---
     $servicesToDisable = @(
         "XblAuthManager", "XblGameSave", "XboxNetApiSvc", "XboxGipSvc", # Xbox Services
