@@ -434,8 +434,8 @@
                                 <Path Grid.Column="0" Fill="{StaticResource AccentBrush}" Data="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z" Height="40" Width="40" Stretch="Uniform" Margin="0,0,24,0"/>
 
                                 <StackPanel Grid.Column="1">
-                                    <CheckBox Name="ChkTweakServices" Style="{StaticResource ToggleSwitch}" Content="System Debloat" Foreground="White" FontSize="18" FontWeight="Bold" IsChecked="True"/>
-                                    <TextBlock Text="Disables telemetry, bloatware apps, and non-essential background services." Foreground="{StaticResource TextSecondary}" Margin="64,8,0,0" TextWrapping="Wrap" FontSize="14" LineHeight="22"/>
+                                    <CheckBox Name="ChkTweakServices" Style="{StaticResource ToggleSwitch}" Content="System &amp; AI Debloat" Foreground="White" FontSize="18" FontWeight="Bold" IsChecked="True"/>
+                                    <TextBlock Text="Disables Copilot, Recall, AI telemetry, and non-essential background services." Foreground="{StaticResource TextSecondary}" Margin="64,8,0,0" TextWrapping="Wrap" FontSize="14" LineHeight="22"/>
                                 </StackPanel>
                             </Grid>
                         </Border>
