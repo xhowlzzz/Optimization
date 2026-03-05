@@ -6,46 +6,139 @@ function Show-Dashboard {
 
     # Load XAML
     $xamlPath = Join-Path $PSScriptRoot "MainWindow.xaml"
+    if (-not (Test-Path $xamlPath)) { throw "MainWindow.xaml not found at $xamlPath" }
+    
     [xml]$xaml = Get-Content $xamlPath -Raw
     $reader = New-Object System.Xml.XmlNodeReader($xaml)
     $window = [Windows.Markup.XamlReader]::Load($reader)
 
-    # Find Controls
-    $controls = @{
+    # ---------------------------------------------------------
+    # UI CONTROLS BINDING
+    # ---------------------------------------------------------
+    $c = @{
+        # Window
+        Window = $window
+        TitleBar = $window.FindName("TitleBar")
         BtnClose = $window.FindName("BtnClose")
         BtnMinimize = $window.FindName("BtnMinimize")
-        BtnRun = $window.FindName("BtnRunOptimization")
-        TxtCpu = $window.FindName("TxtCpuUsage")
-        PbCpu = $window.FindName("PbCpu")
-        TxtRam = $window.FindName("TxtRamUsage")
-        PbRam = $window.FindName("PbRam")
-        TxtLog = $window.FindName("TxtLogPreview")
+        
+        # Navigation
+        BtnDash = $window.FindName("BtnNavDashboard")
+        BtnTweaks = $window.FindName("BtnNavTweaks")
+        BtnBench = $window.FindName("BtnNavBenchmarks")
+        BtnLogs = $window.FindName("BtnNavLogs")
+        BtnSet = $window.FindName("BtnNavSettings")
+        
+        # Views
         ViewDash = $window.FindName("ViewDashboard")
         ViewTweaks = $window.FindName("ViewTweaks")
+        ViewBench = $window.FindName("ViewBenchmarks")
+        ViewLogs = $window.FindName("ViewLogs")
+        ViewSet = $window.FindName("ViewSettings")
+        TxtPageTitle = $window.FindName("TxtPageTitle")
+
+        # Dashboard Widgets
+        TxtGpu = $window.FindName("TxtGpuModel")
+        TxtCpu = $window.FindName("TxtCpuModel")
+        TxtOs = $window.FindName("TxtOsVersion")
+        
+        TxtCpuUsage = $window.FindName("TxtCpuUsage")
+        PbCpu = $window.FindName("PbCpu")
+        TxtCpuDetails = $window.FindName("TxtCpuDetails")
+        
+        TxtRamUsage = $window.FindName("TxtRamUsage")
+        PbRam = $window.FindName("PbRam")
+        TxtRamDetails = $window.FindName("TxtRamDetails")
+        
+        BtnRun = $window.FindName("BtnRunOptimization")
+        TxtLog = $window.FindName("TxtLogPreview")
+        TxtFullLog = $window.FindName("TxtFullLog")
     }
 
+    # ---------------------------------------------------------
+    # HARDWARE INFO
+    # ---------------------------------------------------------
+    try {
+        $cpuInfo = Get-CimInstance Win32_Processor | Select-Object -First 1
+        $osInfo = Get-CimInstance Win32_OperatingSystem
+        $gpuInfo = Get-CimInstance Win32_VideoController | Select-Object -First 1
+        
+        $c.TxtCpu.Text = $cpuInfo.Name.Trim()
+        $c.TxtGpu.Text = $gpuInfo.Name.Trim()
+        $c.TxtOs.Text = ($osInfo.Caption -replace "Microsoft ", "").Trim()
+        
+        # Initial RAM calc
+        $totalRamGB = [math]::Round($osInfo.TotalVisibleMemorySize / 1MB, 1)
+        $c.TxtRamDetails.Text = "$totalRamGB GB Total Memory"
+        $c.TxtCpuDetails.Text = "$($cpuInfo.NumberOfCores) Cores / $($cpuInfo.NumberOfLogicalProcessors) Threads"
+    } catch {
+        $c.TxtCpu.Text = "Unknown CPU"
+    }
+
+    # ---------------------------------------------------------
+    # EVENT HANDLERS
+    # ---------------------------------------------------------
+
     # Window Drag
-    $window.Add_MouseDown({
+    $c.TitleBar.Add_MouseDown({
         if ($_.ChangedButton -eq 'Left') { $window.DragMove() }
     })
     
-    # Event Handlers
-    $controls.BtnClose.Add_Click({ $window.Close() })
-    $controls.BtnMinimize.Add_Click({ $window.WindowState = 'Minimized' })
+    $c.BtnClose.Add_Click({ $window.Close() })
+    $c.BtnMinimize.Add_Click({ $window.WindowState = 'Minimized' })
+
+    # Navigation Logic
+    $navAction = {
+        param($sender, $view, $title)
+        
+        # Reset all buttons
+        $c.BtnDash.IsEnabled = $true
+        $c.BtnTweaks.IsEnabled = $true
+        $c.BtnBench.IsEnabled = $true
+        $c.BtnLogs.IsEnabled = $true
+        $c.BtnSet.IsEnabled = $true
+        
+        # Highlight active
+        $sender.IsEnabled = $false
+        
+        # Hide all views
+        $c.ViewDash.Visibility = 'Collapsed'
+        $c.ViewTweaks.Visibility = 'Collapsed'
+        $c.ViewBench.Visibility = 'Collapsed'
+        $c.ViewLogs.Visibility = 'Collapsed'
+        $c.ViewSet.Visibility = 'Collapsed'
+        
+        # Show target
+        $view.Visibility = 'Visible'
+        $c.TxtPageTitle.Text = $title
+    }
+
+    $c.BtnDash.Add_Click({ & $navAction $c.BtnDash $c.ViewDash "System Dashboard" })
+    $c.BtnTweaks.Add_Click({ & $navAction $c.BtnTweaks $c.ViewTweaks "Performance Tweaks" })
+    $c.BtnBench.Add_Click({ & $navAction $c.BtnBench $c.ViewBench "Benchmarks" })
+    $c.BtnLogs.Add_Click({ & $navAction $c.BtnLogs $c.ViewLogs "Activity Logs" })
+    $c.BtnSet.Add_Click({ & $navAction $c.BtnSet $c.ViewSet "Settings" })
 
     # Metrics Timer
     $timer = New-Object System.Windows.Threading.DispatcherTimer
     $timer.Interval = [TimeSpan]::FromSeconds(1)
     $timer.Add_Tick({
         try {
+            # CPU
             $cpu = Get-CimInstance Win32_Processor | Measure-Object -Property LoadPercentage -Average | Select-Object -ExpandProperty Average
-            $mem = Get-CimInstance Win32_OperatingSystem
-            $ramUsed = [math]::Round(($mem.TotalVisibleMemorySize - $mem.FreePhysicalMemory) / $mem.TotalVisibleMemorySize * 100)
+            $c.TxtCpuUsage.Text = "$cpu%"
+            $c.PbCpu.Value = $cpu
             
-            $controls.TxtCpu.Text = "$cpu%"
-            $controls.PbCpu.Value = $cpu
-            $controls.TxtRam.Text = "$ramUsed%"
-            $controls.PbRam.Value = $ramUsed
+            # RAM
+            $mem = Get-CimInstance Win32_OperatingSystem
+            $used = $mem.TotalVisibleMemorySize - $mem.FreePhysicalMemory
+            $perc = [math]::Round(($used / $mem.TotalVisibleMemorySize) * 100)
+            $usedGB = [math]::Round($used / 1MB, 1)
+            
+            $c.TxtRamUsage.Text = "$perc%"
+            $c.PbRam.Value = $perc
+            $c.TxtRamDetails.Text = "$usedGB GB Used / $([math]::Round($mem.TotalVisibleMemorySize / 1MB, 1)) GB Total"
+            
         } catch {}
     })
     $timer.Start()
@@ -54,25 +147,30 @@ function Show-Dashboard {
     $Script:GuiLogCallback = {
         param($line, $level)
         $window.Dispatcher.Invoke({
-            $controls.TxtLog.AppendText("$line`n")
-            $controls.TxtLog.ScrollToEnd()
+            $c.TxtLog.AppendText("$line`n")
+            $c.TxtLog.ScrollToEnd()
+            
+            if ($c.TxtFullLog) {
+                $c.TxtFullLog.AppendText("$line`n")
+                $c.TxtFullLog.ScrollToEnd()
+            }
         })
     }
 
     # Run Optimization
-    $controls.BtnRun.Add_Click({
-        $controls.BtnRun.IsEnabled = $false
-        $controls.BtnRun.Content = "OPTIMIZING..."
+    $c.BtnRun.Add_Click({
+        $c.BtnRun.IsEnabled = $false
+        $c.BtnRun.Content = "OPTIMIZING..."
         
-        # Async Job (Simulated with simple loop for now to avoid threading complexity in pure PS GUI)
-        # In a real app, use Runspaces.
         $window.Dispatcher.Invoke({
-            # Import Modules
-            Import-Module "$PSScriptRoot\..\Modules\Network.psm1" -Force
-            Import-Module "$PSScriptRoot\..\Modules\CPU.psm1" -Force
-            Import-Module "$PSScriptRoot\..\Modules\GPU.psm1" -Force
-            Import-Module "$PSScriptRoot\..\Modules\System.psm1" -Force
-            Import-Module "$PSScriptRoot\..\Modules\Input.psm1" -Force
+            # Import Modules (Ensure paths are correct relative to PSScriptRoot)
+            $modPath = Join-Path $PSScriptRoot "..\Modules"
+            
+            Import-Module (Join-Path $modPath "Network.psm1") -Force
+            Import-Module (Join-Path $modPath "CPU.psm1") -Force
+            Import-Module (Join-Path $modPath "GPU.psm1") -Force
+            Import-Module (Join-Path $modPath "System.psm1") -Force
+            Import-Module (Join-Path $modPath "Input.psm1") -Force
 
             # Run Tweaks
             Invoke-NetworkOptimization
@@ -81,12 +179,12 @@ function Show-Dashboard {
             Invoke-SystemDebloat
             Invoke-InputOptimization
             
-            $controls.BtnRun.Content = "OPTIMIZATION COMPLETE"
-            $controls.BtnRun.Background = [System.Windows.Media.Brushes]::Green
+            $c.BtnRun.Content = "OPTIMIZATION COMPLETE"
+            $c.BtnRun.Background = [System.Windows.Media.Brushes]::Green
             Start-Sleep -Seconds 2
-            $controls.BtnRun.IsEnabled = $true
-            $controls.BtnRun.Content = "RUN SYSTEM OPTIMIZATION"
-            $controls.BtnRun.Background = [System.Windows.Media.Brushes]::Blue
+            $c.BtnRun.IsEnabled = $true
+            $c.BtnRun.Content = "RUN SYSTEM OPTIMIZATION"
+            $c.BtnRun.Background = [System.Windows.Media.Brushes]::Blue
         }, [System.Windows.Threading.DispatcherPriority]::Background)
     })
 
