@@ -3,7 +3,7 @@ function Write-Log {
     param(
         [Parameter(Mandatory)]
         [string]$Message,
-        [ValidateSet('INFO','SUCCESS','ERROR','WARN')]
+        [ValidateSet('INFO','SUCCESS','ERROR','WARN','DEBUG')]
         [string]$Level = 'INFO',
         [string]$Component = 'Core'
     )
@@ -13,6 +13,7 @@ function Write-Log {
         'SUCCESS' = 'Green'
         'ERROR'   = 'Red'
         'WARN'    = 'Yellow'
+        'DEBUG'   = 'Gray'
     }
 
     $timestamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
