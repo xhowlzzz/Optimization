@@ -58,6 +58,37 @@ if ($IsWebExecution -or -not $HasSrc) {
         # Move to InstallDir
         Move-Item -Path $InnerFolder.FullName -Destination $InstallDir -Force
         
+        $ToolsDir = Join-Path $InstallDir "Tools"
+        if (-not (Test-Path $ToolsDir)) { New-Item -Path $ToolsDir -ItemType Directory -Force | Out-Null }
+        
+        # We need the CLI tool (nvidiaInspector.exe) for automation, but the user also requested Profile Inspector (GUI).
+        # We will try to download the CLI version as it supports silent import.
+        
+        $InspectorZip = "$env:TEMP\nvidiaInspector.zip"
+        
+        try {
+            Write-Host " [DOWNLOADING] NVIDIA Inspector..." -ForegroundColor Yellow
+            # Download NVIDIA Inspector (CLI) v1.9.7.8
+            # Using the direct Orbmu2k download link
+            $cliUrl = "https://download.orbmu2k.de/download.php?id=51"
+            Invoke-WebRequest -Uri $cliUrl -OutFile $InspectorZip -UseBasicParsing
+            
+            Expand-Archive -Path $InspectorZip -DestinationPath "$env:TEMP\InspectorExtract" -Force
+            
+            # Move nvidiaInspector.exe to Tools
+            $exe = Get-ChildItem -Path "$env:TEMP\InspectorExtract" -Recurse -Filter "nvidiaInspector.exe" | Select-Object -First 1
+            if ($exe) { 
+                Copy-Item -Path $exe.FullName -Destination $ToolsDir -Force 
+            }
+            
+            # Cleanup
+            Remove-Item -Path "$env:TEMP\InspectorExtract" -Recurse -Force -ErrorAction SilentlyContinue
+            Remove-Item -Path $InspectorZip -Force -ErrorAction SilentlyContinue
+            
+        } catch {
+            Write-Warning "Failed to download NVIDIA Inspector. Manual import of .nip profile will be required."
+        }
+
         $LauncherScript = Join-Path $InstallDir "IlumnulOS.ps1"
         if (-not (Test-Path $LauncherScript)) { throw "Launcher script missing at $LauncherScript" }
 
