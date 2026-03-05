@@ -9,11 +9,17 @@ function Invoke-InputOptimization {
     Set-RegistryValueSafe -Path 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\kbdclass\Parameters' -Name 'KeyboardDataQueueSize' -Value 20 -Type ([Microsoft.Win32.RegistryValueKind]::DWord)
     
     # USB Power Management
-    $usbRoot = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Enum\USB'
-    Get-ChildItem -Path $usbRoot -Recurse -ErrorAction SilentlyContinue | Where-Object { $_.Name -match 'Device Parameters' } | ForEach-Object {
-        $path = "HKLM:$($_.Name.Substring($_.Name.IndexOf('\SYSTEM')))"
-        Set-ItemProperty -Path $path -Name 'SelectiveSuspendEnabled' -Value 0 -Type DWord -Force -ErrorAction SilentlyContinue
-        Set-ItemProperty -Path $path -Name 'DeviceSelectiveSuspended' -Value 0 -Type DWord -Force -ErrorAction SilentlyContinue
+    $usbRoot = 'HKLM:\SYSTEM\CurrentControlSet\Enum\USB'
+    if (Test-Path -Path $usbRoot) {
+        Get-ChildItem -Path $usbRoot -ErrorAction SilentlyContinue | ForEach-Object {
+            Get-ChildItem -Path $_.PSPath -ErrorAction SilentlyContinue | ForEach-Object {
+                $deviceParamsPath = Join-Path $_.PSPath "Device Parameters"
+                if (Test-Path -Path $deviceParamsPath) {
+                    Set-ItemProperty -Path $deviceParamsPath -Name 'SelectiveSuspendEnabled' -Value 0 -Type DWord -Force -ErrorAction SilentlyContinue
+                    Set-ItemProperty -Path $deviceParamsPath -Name 'DeviceSelectiveSuspended' -Value 0 -Type DWord -Force -ErrorAction SilentlyContinue
+                }
+            }
+        }
     }
 }
 
