@@ -5,12 +5,18 @@ function Show-Dashboard {
     Add-Type -AssemblyName PresentationFramework,PresentationCore,WindowsBase,System.Drawing
 
     # Load XAML
-    $xamlPath = Join-Path $PSScriptRoot "MainWindow.xaml"
-    if (-not (Test-Path $xamlPath)) { throw "MainWindow.xaml not found at $xamlPath" }
-    
-    [xml]$xaml = Get-Content $xamlPath -Raw
-    $reader = New-Object System.Xml.XmlNodeReader($xaml)
-    $window = [Windows.Markup.XamlReader]::Load($reader)
+    try {
+        $xamlPath = Join-Path $PSScriptRoot "MainWindow.xaml"
+        if (-not (Test-Path $xamlPath)) { throw "MainWindow.xaml not found at $xamlPath" }
+        
+        [xml]$xaml = Get-Content $xamlPath -Raw
+        $reader = New-Object System.Xml.XmlNodeReader($xaml)
+        $window = [Windows.Markup.XamlReader]::Load($reader)
+    } catch {
+        Write-Error "Failed to load UI: $($_.Exception.Message)"
+        Write-Warning "Ensure you are running on Windows 10/11 with .NET Framework 4.7.2+"
+        return
+    }
 
     # ---------------------------------------------------------
     # UI CONTROLS BINDING
