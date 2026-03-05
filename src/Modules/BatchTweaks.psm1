@@ -30,6 +30,13 @@ function Invoke-PerformanceBatch {
     netsh int ip set global neighborcachelimit=4096 | Out-Null
     netsh int ip set global routecachelimit=4096 | Out-Null
     netsh int ip set global sourceroutingbehavior=drop | Out-Null
+    netsh int ip set global multicastforwarding=disabled | Out-Null
+    netsh int ip set global dhcpmediasense=disabled | Out-Null
+    netsh int ip set global randomizeidentifiers=disabled | Out-Null
+    
+    # DNS Optimization (Google DNS as placeholder, can be changed)
+    # netsh interface ip set dns "Ethernet" static 8.8.8.8 | Out-Null
+    # netsh interface ip add dns "Ethernet" 8.8.4.4 index=2 | Out-Null
     
     # --- BCD Tweaks (Boot Configuration) ---
     # Disable Boot Screen Animation
@@ -106,6 +113,15 @@ function Invoke-PerformanceBatch {
     
     # 13. Disable Application Prelaunch
     Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "DisableApplicationPrelaunch" -Value 1 -Type DWord
+    
+    # 14. Network Throttling & QoS
+    Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Psched" -Name "NonBestEffortLimit" -Value 0 -Type DWord
+    
+    # 15. Disable Fullscreen Optimization (Global - Redundant check)
+    Set-RegistryValueSafe -Path "HKCU:\System\GameConfigStore" -Name "GameDVR_FSEBehavior" -Value 2 -Type DWord
+    
+    # 16. Visual Effects (Performance)
+    Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects" -Name "VisualFXSetting" -Value 2 -Type DWord
     
     # --- Service Disables (Expanded) ---
     $servicesToDisable = @(
