@@ -182,6 +182,20 @@ function Invoke-SystemDebloat {
         Write-Log -Message "Removed Bloatware: $app" -Level SUCCESS -Component "System"
     }
 
+    # Disable Windows Updates/Store Auto Download
+    Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\Policies\Microsoft\WindowsStore" -Name "AutoDownload" -Value 2 -Type DWord
+    Set-RegistryValueSafe -Path "HKLM:\SYSTEM\Maps" -Name "AutoUpdateEnabled" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU" -Name "NoAutoUpdate" -Value 1 -Type DWord # Aggressive
+    
+    # Disable Defender (Soft/Registry)
+    Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender" -Name "DisableAntiSpyware" -Value 1 -Type DWord
+    Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender\Real-Time Protection" -Name "DisableRealtimeMonitoring" -Value 1 -Type DWord
+    
+    # Clean Settings Tips
+    Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer" -Name "AllowOnlineTips" -Value 0 -Type DWord
+    
+    # Performance
+
     # 4. Optional: Remove OneDrive
     if ($IncludeOneDrive) {
         Invoke-OneDriveRemove
