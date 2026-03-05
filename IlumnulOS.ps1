@@ -157,7 +157,7 @@ try {
     Write-Log "XAML Schema: TextBox supports Block.LineHeight; TextBlock supports LineHeight." -Level DEBUG
 
     # Import Modules
-    $Modules = @("Network.psm1", "CPU.psm1", "GPU.psm1", "System.psm1", "Input.psm1", "Tweaks.psm1")
+    $Modules = @("Network.psm1", "CPU.psm1", "GPU.psm1", "System.psm1", "Input.psm1", "Tweaks.psm1", "End.psm1")
     foreach ($m in $Modules) { Import-Module (Join-Path $ModulePath "Modules\$m") -Force }
     Write-Log "Feature modules loaded." -Level INFO
 
