@@ -200,6 +200,18 @@ function Invoke-PerformanceBatch {
     # Prevents USB devices (mouse/keyboard/headset) from disconnecting or lagging
     Set-RegistryValueSafe -Path "HKLM:\SYSTEM\CurrentControlSet\Services\USB" -Name "DisableSelectiveSuspend" -Value 1 -Type DWord
     
+    # 26. Disable Fast Startup (Hiberboot)
+    # Prevents kernel session from being saved to disk (Cleaner cold boots)
+    Set-RegistryValueSafe -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Power" -Name "HiberbootEnabled" -Value 0 -Type DWord
+    
+    # 27. Network Throttling & System Responsiveness (Redundant but Critical)
+    Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile" -Name "NetworkThrottlingIndex" -Value 0xFFFFFFFF -Type DWord
+    Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile" -Name "SystemResponsiveness" -Value 0 -Type DWord
+    
+    # 28. Win32 Priority Separation (26 Hex = 38 Dec)
+    # 2 (Foreground shorter) | 6 (Variable length) - Favors games/foreground apps
+    Set-RegistryValueSafe -Path "HKLM:\SYSTEM\CurrentControlSet\Control\PriorityControl" -Name "Win32PrioritySeparation" -Value 38 -Type DWord
+    
     # --- Service Disables (Expanded) ---
     $servicesToDisable = @(
         "XblAuthManager", "XblGameSave", "XboxNetApiSvc", "XboxGipSvc", # Xbox Services
