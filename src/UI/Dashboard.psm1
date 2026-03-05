@@ -213,7 +213,7 @@ function Show-Dashboard {
         }
     }
 
-    $c.BtnDash.Add_Click({ & $navAction $c.BtnDash $c.ViewDash "System Dashboard" })
+    $c.BtnDash.Add_Click({ & $navAction $c.BtnDash $c.ViewDash "Titan Dashboard" })
     $c.BtnTweaks.Add_Click({ & $navAction $c.BtnTweaks $c.ViewTweaks "Performance Tweaks" })
     $c.BtnBench.Add_Click({ & $navAction $c.BtnBench $c.ViewBench "Benchmarks" })
     $c.BtnLogs.Add_Click({ & $navAction $c.BtnLogs $c.ViewLogs "Activity Logs" })
@@ -308,7 +308,7 @@ function Show-Dashboard {
             $c.BtnRun.Background = [System.Windows.Media.Brushes]::Green
             Start-Sleep -Seconds 2
             $c.BtnRun.IsEnabled = $true
-            $c.BtnRun.Content = "RUN SYSTEM OPTIMIZATION"
+            $c.BtnRun.Content = "RUN TITAN OPTIMIZATION"
             $c.BtnRun.Background = [System.Windows.Media.Brushes]::Blue
         }, [System.Windows.Threading.DispatcherPriority]::Background)
     })
