@@ -1,6 +1,6 @@
 <div align="center">
 
-# âš¡ Optimizare
+# ⚡ Optimizare
 ### The Ultimate Windows Optimization Suite
 
 <img src="assets/logo.png" alt="Optimizare Logo" width="300">
@@ -13,25 +13,25 @@
 
 ---
 
-## ðŸ“– Description
+## 📖 Description
 
 **Optimizare** (formerly IlumnulOS) is a state-of-the-art Windows optimization toolkit designed for gamers, power users, and enthusiasts. Built entirely in PowerShell, it automates complex system tuning to reduce latency, increase FPS, and remove Microsoft bloatware.
 
 From deep registry hacks to kernel-level mitigations, Optimizare applies industry-standard tweaks used by esports professionals, packaged into a modern, easy-to-use interface.
 
-> âš ï¸ **Disclaimer**: This tool makes significant changes to your system configuration. While tested for stability, **always create a System Restore point** before applying optimizations.
+> ⚠️ **Disclaimer**: This tool makes significant changes to your system configuration. While tested for stability, **always create a System Restore point** before applying optimizations.
 
 ---
 
-## âœ¨ Features
+## ✨ Features
 
-### ðŸš€ Performance & Kernel
+### 🚀 Performance & Kernel
 - **Process Priority Management**: Hard-coded Realtime/High priority for `dwm.exe` and `ntoskrnl.exe`; Low priority for background services.
 - **MMCSS Tuning**: Custom "Gaming" profile with `GPU Priority=8` and `Scheduling Category=High`.
 - **Kernel Mitigations**: Disables Spectre/Meltdown patches (`MitigationOptions`) for maximum CPU throughput.
 - **Memory Management**: Disables Memory Compression and Page Combining to reduce CPU overhead.
 
-### ðŸ§¹ Debloating & Cleaning
+### 🧹 Debloating & Cleaning
 - **Appx Remover**: Automated removal of ~30 pre-installed bloatware apps (Bing, Maps, Solitaire, etc.).
 - **Telemetry Killswitch**:
   - Disables ~40 Data Collection Scheduled Tasks.
@@ -39,18 +39,18 @@ From deep registry hacks to kernel-level mitigations, Optimizare applies industr
   - Hard-disables `DiagTrack` and `dmwappushservice`.
 - **PC Cleaner**: Deep cleaning of Temp folders, Prefetch, Crash Dumps, and Log files.
 
-### ðŸŽ® Gaming & Graphics
+### 🎮 Gaming & Graphics
 - **GPU Optimization**:
   - Forces **Contiguous Memory Allocation**.
   - Enables **MPO** (Multiplane Overlay) and **FSO** (Full Screen Optimizations).
   - Sets DirectX Kernel Latency Tolerance to minimum (`1`).
 - **Input Lag Reduction**: Disables USB Selective Suspend and "Sticky Keys" interrupts.
 
-### ðŸŒ Network Stack
+### 🌐 Network Stack
 - **TCP Tuning**: Optimized `TcpMaxDataRetransmissions`, disabled Timestamps, and tuned `MaxFreeTcbs`.
 - **Throttling Removal**: Disables `NetworkThrottlingIndex` and sets System Responsiveness to 100%.
 
-### ðŸ› ï¸ Hardware (DevManView)
+### 🛠️ Hardware (DevManView)
 - Automated disabling of high-latency devices:
   - High Precision Event Timer (HPET)
   - Intel Management Engine (IME)
@@ -59,7 +59,7 @@ From deep registry hacks to kernel-level mitigations, Optimizare applies industr
 
 ---
 
-## ðŸ“¥ Installation
+## 📥 Installation
 
 1.  **Download** the latest release or clone the repository:
     ```powershell
@@ -72,7 +72,7 @@ From deep registry hacks to kernel-level mitigations, Optimizare applies industr
 
 ---
 
-## ðŸ› ï¸ Usage
+## 🛠️ Usage
 
 1.  **Run as Administrator**:
     Right-click `IlumnulOS.ps1` and select **"Run with PowerShell"**.
@@ -91,7 +91,7 @@ From deep registry hacks to kernel-level mitigations, Optimizare applies industr
 
 ---
 
-## ðŸ¤ Contributing
+## 🤝 Contributing
 
 Contributions are welcome! Please follow these steps:
 
@@ -103,12 +103,12 @@ Contributions are welcome! Please follow these steps:
 
 ---
 
-## ðŸ“œ License
+## 📜 License
 
 Distributed under the MIT License. See `LICENSE` for more information.
 
 ---
 
 <div align="center">
-  <sub>Built with â¤ï¸ for the Windows Community</sub>
+  <sub>Built with ❤️ for the Windows Community</sub>
 </div>
