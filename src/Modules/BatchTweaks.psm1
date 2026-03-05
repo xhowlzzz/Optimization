@@ -164,6 +164,24 @@ function Invoke-PerformanceBatch {
     # 17. Power Throttling (Disable for everything)
     Set-RegistryValueSafe -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Power\PowerThrottling" -Name "PowerThrottlingOff" -Value 1 -Type DWord
     
+    # 18. Hardware Accelerated GPU Scheduling (HAGS)
+    # 2 = Enabled (Recommended for modern NVIDIA/AMD cards for DLSS 3/FSR)
+    Set-RegistryValueSafe -Path "HKLM:\SYSTEM\CurrentControlSet\Control\GraphicsDrivers" -Name "HwSchMode" -Value 2 -Type DWord
+    
+    # 19. VR Preemption (Reduces micro-stutter for VR and High-FPS gaming)
+    Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\NVIDIA Corporation\Global\System" -Name "VrPreemption" -Value 0 -Type DWord
+    
+    # 20. Input Queue Size (For High Polling Rate Mice 1000Hz+)
+    Set-RegistryValueSafe -Path "HKLM:\SYSTEM\CurrentControlSet\Services\mouclass\Parameters" -Name "MouseDataQueueSize" -Value 100 -Type DWord
+    Set-RegistryValueSafe -Path "HKLM:\SYSTEM\CurrentControlSet\Services\kbdclass\Parameters" -Name "KeyboardDataQueueSize" -Value 100 -Type DWord
+    
+    # 21. Disable Teredo/ISATAP (Tunneling Protocols - reduce network overhead)
+    netsh interface teredo set state disabled | Out-Null
+    netsh interface isatap set state disabled | Out-Null
+    
+    # 22. Force Disable Transparency (Extreme Performance)
+    Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" -Name "EnableTransparency" -Value 0 -Type DWord
+    
     # --- Service Disables (Expanded) ---
     $servicesToDisable = @(
         "XblAuthManager", "XblGameSave", "XboxNetApiSvc", "XboxGipSvc", # Xbox Services
@@ -176,7 +194,9 @@ function Invoke-PerformanceBatch {
         "TermService", # Remote Desktop
         "SensorService",
         "SensorDataService",
-        "SensorService"
+        "Fax",
+        "RetailDemo",
+        "WalletService"
     )
     foreach ($svc in $servicesToDisable) {
         if (Get-Service -Name $svc -ErrorAction SilentlyContinue) {
