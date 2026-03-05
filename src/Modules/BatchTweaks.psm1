@@ -182,11 +182,8 @@ function Invoke-PerformanceBatch {
     # 22. Force Disable Transparency (Extreme Performance)
     Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" -Name "EnableTransparency" -Value 0 -Type DWord
     
-    # 23. DMA Remapping (Virtualization-Based Security overhead)
-    # Warning: Disables Memory Integrity (Core Isolation)
-    Set-RegistryValueSafe -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name "FeatureSettingsOverride" -Value 3 -Type DWord
-    Set-RegistryValueSafe -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name "FeatureSettingsOverrideMask" -Value 3 -Type DWord
-    Set-RegistryValueSafe -Path "HKLM:\SYSTEM\CurrentControlSet\Control\DeviceGuard\Scenarios\HypervisorEnforcedCodeIntegrity" -Name "Enabled" -Value 0 -Type DWord
+    # [REMOVED] 23. DMA Remapping / Core Isolation Disables (User Requested Safety)
+    # Keeping Memory Integrity intact.
 
     # 24. MMCSS Optimization (Gaming Profile)
     # Forces Windows to prioritize game threads over background multimedia
