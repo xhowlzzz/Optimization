@@ -839,7 +839,7 @@ function Invoke-PerformanceBatch {
     )
     # Note: 'lfsvc' needs special handling for its sub-key status, done below separately if needed.
     Set-RegistryValueSafe -Path "HKLM:\SYSTEM\CurrentControlSet\Services\lfsvc\Service\Configuration" -Name "Status" -Value 0 -Type DWord
-    )
+    
     foreach ($svc in $servicesToDisable) {
         if (Get-Service -Name $svc -ErrorAction SilentlyContinue) {
             Stop-Service -Name $svc -Force -ErrorAction SilentlyContinue
