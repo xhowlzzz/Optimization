@@ -483,6 +483,93 @@ function Invoke-PerformanceBatch {
     )
     foreach ($glk in $gfxLatencyKeys) { Set-RegistryValueSafe -Path $gfxPower -Name $glk -Value 1 -Type DWord }
 
+    # 59. NVIDIA Specific Advanced Tweaks (Ancel)
+    # Target the main NVIDIA driver key (0000). Note: This ID might vary (0001, 0002) but 0000 is standard for primary.
+    $nvKey = "HKLM:\SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}\0000"
+    
+    if (Test-Path $nvKey) {
+        # Latency Tolerance
+        Set-RegistryValueSafe -Path $nvKey -Name "D3PCLatency" -Value 1 -Type DWord
+        Set-RegistryValueSafe -Path $nvKey -Name "F1TransitionLatency" -Value 1 -Type DWord
+        Set-RegistryValueSafe -Path $nvKey -Name "LOWLATENCY" -Value 1 -Type DWord
+        Set-RegistryValueSafe -Path $nvKey -Name "Node3DLowLatency" -Value 1 -Type DWord
+        Set-RegistryValueSafe -Path $nvKey -Name "PciLatencyTimerControl" -Value 20 -Type DWord
+        Set-RegistryValueSafe -Path $nvKey -Name "RMDeepL1EntryLatencyUsec" -Value 1 -Type DWord
+        Set-RegistryValueSafe -Path $nvKey -Name "RmGspcMaxFtuS" -Value 1 -Type DWord
+        Set-RegistryValueSafe -Path $nvKey -Name "RmGspcMinFtuS" -Value 1 -Type DWord
+        Set-RegistryValueSafe -Path $nvKey -Name "RmGspcPerioduS" -Value 1 -Type DWord
+        Set-RegistryValueSafe -Path $nvKey -Name "RMLpwrEiIdleThresholdUs" -Value 1 -Type DWord
+        Set-RegistryValueSafe -Path $nvKey -Name "RMLpwrGrIdleThresholdUs" -Value 1 -Type DWord
+        Set-RegistryValueSafe -Path $nvKey -Name "RMLpwrGrRgIdleThresholdUs" -Value 1 -Type DWord
+        Set-RegistryValueSafe -Path $nvKey -Name "RMLpwrMsIdleThresholdUs" -Value 1 -Type DWord
+        Set-RegistryValueSafe -Path $nvKey -Name "VRDirectFlipDPCDelayUs" -Value 1 -Type DWord
+        Set-RegistryValueSafe -Path $nvKey -Name "VRDirectFlipTimingMarginUs" -Value 1 -Type DWord
+        Set-RegistryValueSafe -Path $nvKey -Name "VRDirectJITFlipMsHybridFlipDelayUs" -Value 1 -Type DWord
+        Set-RegistryValueSafe -Path $nvKey -Name "vrrCursorMarginUs" -Value 1 -Type DWord
+        Set-RegistryValueSafe -Path $nvKey -Name "vrrDeflickerMarginUs" -Value 1 -Type DWord
+        Set-RegistryValueSafe -Path $nvKey -Name "vrrDeflickerMaxUs" -Value 1 -Type DWord
+
+        # Memory & Buffer Tweaks
+        Set-RegistryValueSafe -Path $nvKey -Name "PreferSystemMemoryContiguous" -Value 1 -Type DWord
+        Set-RegistryValueSafe -Path $nvKey -Name "RmFbsrPagedDMA" -Value 1 -Type DWord # Reallocate DMA
+        Set-RegistryValueSafe -Path $nvKey -Name "RmCacheLoc" -Value 0 -Type DWord # Increase Ded. Video Memory
+
+        # Feature Disables
+        Set-RegistryValueSafe -Path $nvKey -Name "RMHdcpKeyGlobZero" -Value 1 -Type DWord # Disable HDCP
+        Set-RegistryValueSafe -Path $nvKey -Name "TCCSupported" -Value 0 -Type DWord # Disable TCC
+        Set-RegistryValueSafe -Path $nvKey -Name "Acceleration.Level" -Value 0 -Type DWord # Video Redraw Accel
+        Set-RegistryValueSafe -Path $nvKey -Name "DesktopStereoShortcuts" -Value 0 -Type DWord # 3D Vision
+        Set-RegistryValueSafe -Path $nvKey -Name "FeatureControl" -Value 4 -Type DWord
+        Set-RegistryValueSafe -Path $nvKey -Name "NVDeviceSupportKFilter" -Value 0 -Type DWord # Disable Filter
+        Set-RegistryValueSafe -Path $nvKey -Name "RmDisableInst2Sys" -Value 0 -Type DWord # Driver Pkg Dir
+        Set-RegistryValueSafe -Path $nvKey -Name "RmProfilingAdminOnly" -Value 0 -Type DWord # PCounter Perms
+        Set-RegistryValueSafe -Path $nvKey -Name "TrackResetEngine" -Value 0 -Type DWord # Disable DX Event Tracking
+        Set-RegistryValueSafe -Path $nvKey -Name "ValidateBlitSubRects" -Value 0 -Type DWord # Disable Verify Block Transfer
+    }
+
+    # NVIDIA Telemetry (Services & Tasks)
+    Remove-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" -Name "NvBackend" -ErrorAction SilentlyContinue
+    Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\NVIDIA Corporation\NvControlPanel2\Client" -Name "OptInOrOutPreference" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\NVIDIA Corporation\Global\FTS" -Name "EnableRID66610" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\NVIDIA Corporation\Global\FTS" -Name "EnableRID64640" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\NVIDIA Corporation\Global\FTS" -Name "EnableRID44231" -Value 0 -Type DWord
+    
+    $nvTasks = @(
+        "NvTmRep_CrashReport1_{B2FE1952-0186-46C3-BAEC-A80AA35AC5B8}",
+        "NvTmRep_CrashReport2_{B2FE1952-0186-46C3-BAEC-A80AA35AC5B8}",
+        "NvTmRep_CrashReport3_{B2FE1952-0186-46C3-BAEC-A80AA35AC5B8}",
+        "NvTmRep_CrashReport4_{B2FE1952-0186-46C3-BAEC-A80AA35AC5B8}",
+        "NvDriverUpdateCheckDaily_{B2FE1952-0186-46C3-BAEC-A80AA35AC5B8}",
+        "NVIDIA GeForce Experience SelfUpdate_{B2FE1952-0186-46C3-BAEC-A80AA35AC5B8}",
+        "NvTmMon_{B2FE1952-0186-46C3-BAEC-A80AA35AC5B8}"
+    )
+    foreach ($task in $nvTasks) { Disable-ScheduledTask -TaskName $task -ErrorAction SilentlyContinue | Out-Null }
+
+    # NVIDIA Power & DPC
+    Set-RegistryValueSafe -Path "HKLM:\SYSTEM\CurrentControlSet\Services\nvlddmkm\Global\NVTweak" -Name "DisplayPowerSaving" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path "HKLM:\SYSTEM\CurrentControlSet\Services\nvlddmkm" -Name "DisableWriteCombining" -Value 1 -Type DWord
+    
+    # Enable DPC for each Core
+    $dpcKeys = @(
+        "HKLM:\SYSTEM\CurrentControlSet\Services\nvlddmkm",
+        "HKLM:\SYSTEM\CurrentControlSet\Services\nvlddmkm\NVAPI",
+        "HKLM:\SYSTEM\CurrentControlSet\Services\nvlddmkm\Global\NVTweak",
+        "HKLM:\SYSTEM\CurrentControlSet\Control\GraphicsDrivers",
+        "HKLM:\SYSTEM\CurrentControlSet\Control\GraphicsDrivers\Power"
+    )
+    foreach ($k in $dpcKeys) { Set-RegistryValueSafe -Path $k -Name "RmGpsPsEnablePerCpuCoreDpc" -Value 1 -Type DWord }
+
+    # 60. Disable TDR (Timeout Detection and Recovery) - COMPLETELY
+    # Warning: If GPU hangs, system will freeze instead of resetting driver.
+    $tdrKey = "HKLM:\SYSTEM\CurrentControlSet\Control\GraphicsDrivers"
+    Set-RegistryValueSafe -Path $tdrKey -Name "TdrLevel" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path $tdrKey -Name "TdrDelay" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path $tdrKey -Name "TdrDdiDelay" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path $tdrKey -Name "TdrDebugMode" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path $tdrKey -Name "TdrLimitCount" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path $tdrKey -Name "TdrLimitTime" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path $tdrKey -Name "TdrTestMode" -Value 0 -Type DWord
+
     # --- Service Disables (Expanded) ---
     $servicesToDisable = @(
         "XblAuthManager", "XblGameSave", "XboxNetApiSvc", "XboxGipSvc", # Xbox Services
