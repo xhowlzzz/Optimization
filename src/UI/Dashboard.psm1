@@ -9,12 +9,25 @@ function Show-Dashboard {
         $xamlPath = Join-Path $PSScriptRoot "MainWindow.xaml"
         if (-not (Test-Path $xamlPath)) { throw "MainWindow.xaml not found at $xamlPath" }
         
+        # File Integrity Check
+        $expectedHash = "1037261B410FFC3137F45AEBB3877C4AD5F80644FDC232A9B0BABB7A82E129B2"
+        $currentHash = (Get-FileHash $xamlPath -Algorithm SHA256).Hash
+        if ($currentHash -ne $expectedHash) {
+            Write-Log -Message "CORRUPT: MainWindow.xaml hash mismatch. Expected $expectedHash, got $currentHash" -Level WARN -Component "UI"
+            # We continue but warn
+        }
+
         [xml]$xaml = Get-Content $xamlPath -Raw
         $reader = New-Object System.Xml.XmlNodeReader($xaml)
         $window = [Windows.Markup.XamlReader]::Load($reader)
     } catch {
-        $errorMsg = "CRITICAL UI ERROR: Failed to load MainWindow.xaml.`n`nDetails: $($_.Exception.Message)`n`nTroubleshooting:`n1. Ensure .NET Framework 4.7.2+ is installed.`n2. Check for file corruption."
+        $ex = $_.Exception
+        $inner = if ($ex.InnerException) { $ex.InnerException.Message } else { "None" }
+        $errorMsg = "CRITICAL UI ERROR: Failed to load MainWindow.xaml.`n`nError: $($ex.Message)`nInner Exception: $inner`n`nTroubleshooting:`n1. Ensure .NET Framework 4.7.2+ is installed.`n2. Check for file corruption."
+        
+        Write-Log -Message $errorMsg -Level ERROR -Component "UI"
         Write-Error $errorMsg
+        
         # We can use a MessageBox if available, otherwise just console error
         if ([System.Windows.MessageBox]::Show($errorMsg, "Optimizer Load Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error) -eq 'OK') {}
         return
@@ -214,7 +227,7 @@ function Show-Dashboard {
                 param($path)
                 function Write-Log { param($Message, $Level, $Component) Write-Output "[$Level] $Component : $Message" }
                 Import-Module $path
-                Update-Win11Tweaks -CurrentVersion "2.0.7"
+                Update-Win11Tweaks -CurrentVersion "2.0.8"
             } -ArgumentList $updatePath
         }
     }
