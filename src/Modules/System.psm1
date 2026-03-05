@@ -191,8 +191,8 @@ function Invoke-SystemDebloat {
 function Invoke-OneDriveRemove {
     Write-Log -Message "Removing OneDrive..." -Level INFO -Component "OneDrive"
     
-    # Kill OneDrive process
-    taskkill /F /IM "OneDrive.exe" -ErrorAction SilentlyContinue | Out-Null
+    # Kill OneDrive process (PowerShell native)
+    Get-Process -Name "OneDrive" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
     
     # Uninstall command
     $onedriveSetup = "$env:SystemRoot\SysWOW64\OneDriveSetup.exe"
