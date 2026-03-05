@@ -769,6 +769,57 @@ function Invoke-PerformanceBatch {
     Remove-Item -Path "$env:SystemRoot\Logs\CBS\CBS.log" -Force -ErrorAction SilentlyContinue
     Remove-Item -Path "$env:SystemRoot\Logs\DISM\DISM.log" -Force -ErrorAction SilentlyContinue
 
+    # 66. Device Disables via DevManView (Ancel)
+    # Download DevManView
+    $dmvPath = "$env:SystemRoot\System32\DevManView.exe"
+    # Using 'raw' GitHub link for direct executable download
+    $dmvUrl = "https://github.com/xhowlzzz/Optimization/raw/main/Tools/DevManView.exe" 
+    
+    try {
+        if (-not (Test-Path $dmvPath)) {
+            Write-Log "Downloading DevManView..." -Level INFO
+            Invoke-WebRequest -Uri $dmvUrl -OutFile $dmvPath -ErrorAction Stop
+        }
+        
+        if (Test-Path $dmvPath) {
+            Write-Log "Disabling Devices via DevManView..." -Level INFO
+            $devicesToDisable = @(
+                "High Precision Event Timer",
+                "Microsoft GS Wavetable Synth",
+                "Microsoft RRAS Root Enumerator",
+                "Intel Management Engine",
+                "Intel Management Engine Interface",
+                "Intel SMBus",
+                "SM Bus Controller",
+                "Amdlog",
+                "AMD PSP",
+                "System Speaker",
+                "Composite Bus Enumerator",
+                "Microsoft Virtual Drive Enumerator",
+                "Microsoft Hyper-V Virtualization Infrastructure Driver",
+                "NDIS Virtual Network Adapter Enumerator",
+                "Remote Desktop Device Redirector Bus",
+                "UMBus Root Bus Enumerator",
+                "WAN Miniport (IP)",
+                "WAN Miniport (IKEv2)",
+                "WAN Miniport (IPv6)",
+                "WAN Miniport (L2TP)",
+                "WAN Miniport (PPPOE)",
+                "WAN Miniport (PPTP)",
+                "WAN Miniport (SSTP)",
+                "WAN Miniport (Network Monitor)"
+            )
+            
+            foreach ($dev in $devicesToDisable) {
+                Start-Process -FilePath $dmvPath -ArgumentList "/disable `"$dev`"" -Wait -NoNewWindow -ErrorAction SilentlyContinue
+            }
+        } else {
+            Write-Log "DevManView download failed or blocked." -Level ERROR
+        }
+    } catch {
+        Write-Log "Failed to download/run DevManView: $_" -Level ERROR
+    }
+
     # --- Service Disables (Expanded) ---
     $servicesToDisable = @(
         "TapiSrv", "FontCache3.0.0.0", "WpcMonSvc", "SEMgrSvc", "PNRPsvc", "LanmanWorkstation",
