@@ -1,63 +1,122 @@
-# Optimizare âš¡
+<div align="center">
 
-**Optimizare** (or IlumnulOS Optimizer) is a powerful, PowerShell-based Windows optimization suite designed to squeeze every last drop of performance from your system. It combines deep registry tweaks, service disabling, network stack tuning, and bloatware removal into a single, easy-to-use utility.
+# âš¡ Optimizare
+### The Ultimate Windows Optimization Suite
 
-> âš ï¸ **Warning**: This tool applies aggressive optimizations. It is recommended to create a System Restore point before running.
+<img src="assets/preview.svg" alt="Optimizare Dashboard Preview" width="800">
 
-## ðŸš€ Features
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![PowerShell](https://img.shields.io/badge/PowerShell-5.1%2B-blue.svg)](https://github.com/PowerShell/PowerShell)
+[![Platform](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-0078D6.svg)](https://www.microsoft.com/windows)
 
-### **1. Extreme Performance Tweaks**
-*   **Process Priority (IFEO)**: Hard-coded Realtime/High priority for critical system processes (`dwm.exe`, `ntoskrnl.exe`) and Low priority for background tasks (`SearchIndexer.exe`, `lsass.exe`).
-*   **Multimedia Class Scheduler (MMCSS)**: Custom "Gaming" profile with `GPU Priority=8` and `Scheduling Category=High`.
-*   **Kernel Optimizations**: Disabled `MitigationOptions` (Spectre/Meltdown patches), Memory Compression, and Page Combining for raw throughput.
-*   **Power Throttling**: Disabled globally and specifically for Modern Standby (`CoalescingTimerInterval=0`).
+</div>
 
-### **2. Deep Debloating**
-*   **Appx Removal**: Automatically removes ~30 bloatware apps (Bing, Solitaire, OfficeHub, Phone, Maps, etc.) while safely skipping protected system components.
-*   **Telemetry Purge**:
-    *   Disables ~40 Scheduled Tasks (CEIP, SQM, Family Safety).
-    *   Blocks ~35 WMI AutoLoggers (Trace Sessions).
-    *   Hard disables `DiagTrack` and `dmwappushservice`.
-*   **Cortana & OneDrive**: Aggressive registry disables and full uninstall routines.
+---
 
-### **3. Gaming & Graphics**
-*   **NVIDIA/AMD Optimization**:
-    *   Disables HDCP, TCC, and Telemetry.
-    *   Forces **Contiguous Memory Allocation** (`PreferSystemMemoryContiguous`).
-    *   Sets **Latency Tolerance** to `1` (Lowest) for DirectX Kernel and Power management.
-    *   Enables **MPO** (Multiplane Overlay) and **FSO** (Full Screen Optimizations).
-*   **Input Lag Reduction**: Disables USB Selective Suspend, Sticky Keys shortcuts, and optimizes Mouse/Keyboard data queue sizes.
+## ðŸ“– Description
 
-### **4. Network Tuning**
-*   **TCP Stack**: Tuned `TcpMaxDataRetransmissions`, disabled `Tcp1323Opts` (Timestamps), and optimized `MaxFreeTcbs` for raw packet throughput.
-*   **Throttling**: Disabled `NetworkThrottlingIndex` and set `SystemResponsiveness` to 10.
+**Optimizare** (formerly IlumnulOS) is a state-of-the-art Windows optimization toolkit designed for gamers, power users, and enthusiasts. Built entirely in PowerShell, it automates complex system tuning to reduce latency, increase FPS, and remove Microsoft bloatware.
 
-### **5. Hardware Disables (DevManView)**
-*   Automatically downloads `DevManView` to disable high-overhead devices:
-    *   High Precision Event Timer (HPET)
-    *   WAN Miniports (IP, IPv6, PPTP, etc.)
-    *   Intel Management Engine (IME) & SMBus
-    *   System Speaker & Composite Bus Enumerator
+From deep registry hacks to kernel-level mitigations, Optimizare applies industry-standard tweaks used by esports professionals, packaged into a modern, easy-to-use interface.
 
-### **6. PC Cleaner**
-*   Safely cleans:
-    *   Temp Folders (`%TEMP%`, `C:\Windows\Temp`)
-    *   Prefetch
-    *   Recycle Bin
-    *   Thumbcache
-    *   System Logs (`CBS.log`, `DISM.log`)
+> âš ï¸ **Disclaimer**: This tool makes significant changes to your system configuration. While tested for stability, **always create a System Restore point** before applying optimizations.
+
+---
+
+## âœ¨ Features
+
+### ðŸš€ Performance & Kernel
+- **Process Priority Management**: Hard-coded Realtime/High priority for `dwm.exe` and `ntoskrnl.exe`; Low priority for background services.
+- **MMCSS Tuning**: Custom "Gaming" profile with `GPU Priority=8` and `Scheduling Category=High`.
+- **Kernel Mitigations**: Disables Spectre/Meltdown patches (`MitigationOptions`) for maximum CPU throughput.
+- **Memory Management**: Disables Memory Compression and Page Combining to reduce CPU overhead.
+
+### ðŸ§¹ Debloating & Cleaning
+- **Appx Remover**: Automated removal of ~30 pre-installed bloatware apps (Bing, Maps, Solitaire, etc.).
+- **Telemetry Killswitch**:
+  - Disables ~40 Data Collection Scheduled Tasks.
+  - Blocks ~35 WMI AutoLoggers.
+  - Hard-disables `DiagTrack` and `dmwappushservice`.
+- **PC Cleaner**: Deep cleaning of Temp folders, Prefetch, Crash Dumps, and Log files.
+
+### ðŸŽ® Gaming & Graphics
+- **GPU Optimization**:
+  - Forces **Contiguous Memory Allocation**.
+  - Enables **MPO** (Multiplane Overlay) and **FSO** (Full Screen Optimizations).
+  - Sets DirectX Kernel Latency Tolerance to minimum (`1`).
+- **Input Lag Reduction**: Disables USB Selective Suspend and "Sticky Keys" interrupts.
+
+### ðŸŒ Network Stack
+- **TCP Tuning**: Optimized `TcpMaxDataRetransmissions`, disabled Timestamps, and tuned `MaxFreeTcbs`.
+- **Throttling Removal**: Disables `NetworkThrottlingIndex` and sets System Responsiveness to 100%.
+
+### ðŸ› ï¸ Hardware (DevManView)
+- Automated disabling of high-latency devices:
+  - High Precision Event Timer (HPET)
+  - Intel Management Engine (IME)
+  - Unused WAN Miniports
+  - Legacy System Speakers
+
+---
+
+## ðŸ“¥ Installation
+
+1.  **Download** the latest release or clone the repository:
+    ```powershell
+    git clone https://github.com/xhowlzzz/Optimizare.git
+    ```
+2.  **Navigate** to the folder:
+    ```powershell
+    cd Optimizare
+    ```
+
+---
 
 ## ðŸ› ï¸ Usage
 
-1.  **Run as Administrator**: Right-click `IlumnulOS.ps1` and select "Run with PowerShell".
-2.  **Dashboard**: The tool will launch a GUI dashboard.
-3.  **Apply Tweaks**: Click "Optimize" to apply all tweaks. The log window will show real-time progress.
-4.  **Reboot**: Restart your computer for all changes (especially Registry and Service disables) to take effect.
+1.  **Run as Administrator**:
+    Right-click `IlumnulOS.ps1` and select **"Run with PowerShell"**.
+    
+    *Or run via terminal:*
+    ```powershell
+    Set-ExecutionPolicy Unrestricted -Scope Process -Force
+    .\IlumnulOS.ps1
+    ```
 
-## ðŸ“ Credits
-*   **xhowlzzz**: Core developer.
-*   **Ancel**: Source of many deep registry and batch optimizations.
-*   **MelodyTheNeko**: Latency tolerance research.
+2.  **Dashboard**:
+    The GUI dashboard will launch. Select your desired optimizations.
+
+3.  **Apply & Reboot**:
+    Click **"Optimize"** and wait for the log to report completion. **Restart your PC** to finalize changes.
 
 ---
-*Built for Windows 10 & 11.*
+
+## ðŸ¤ Contributing
+
+Contributions are welcome! Please follow these steps:
+
+1.  Fork the repository.
+2.  Create a feature branch (`git checkout -b feature/AmazingFeature`).
+3.  Commit your changes (`git commit -m 'Add some AmazingFeature'`).
+4.  Push to the branch (`git push origin feature/AmazingFeature`).
+5.  Open a Pull Request.
+
+---
+
+## ðŸ“œ License
+
+Distributed under the MIT License. See `LICENSE` for more information.
+
+---
+
+## ðŸ‘ Credits
+
+*   **xhowlzzz**: Core Developer & Maintainer
+*   **Ancel**: Advanced Registry & Batch Tweaks
+*   **MelodyTheNeko**: Latency Tolerance Research
+
+---
+
+<div align="center">
+  <sub>Built with â¤ï¸ for the Windows Community</sub>
+</div>
