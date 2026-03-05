@@ -9,9 +9,12 @@
 
 .NOTES
     Author: Howl
-    Version: 2.0.1
+    Version: 2.0.2
     License: MIT
 #>
+
+# Define Global Error Action to prevent silent closures
+$ErrorActionPreference = 'Stop'
 
 # 1. BOOTSTRAPPER LOGIC (Handle 'iwr | iex' scenario)
 $IsWebExecution = ($null -eq $PSScriptRoot) -or ($PSScriptRoot -eq '')
@@ -26,8 +29,8 @@ if ($IsWebExecution -or -not (Test-Path $ModulePath)) {
     $ExtractPath = "$env:TEMP\Win11Optimizer_Extract"
     
     # Clean up previous runs
-    Remove-Item $ProjectRoot -Recurse -Force -ErrorAction SilentlyContinue
-    Remove-Item $ExtractPath -Recurse -Force -ErrorAction SilentlyContinue
+    if (Test-Path $ProjectRoot) { Remove-Item $ProjectRoot -Recurse -Force -ErrorAction SilentlyContinue }
+    if (Test-Path $ExtractPath) { Remove-Item $ExtractPath -Recurse -Force -ErrorAction SilentlyContinue }
     
     try {
         Write-Host " [DOWNLOADING] Fetching latest version from GitHub..." -ForegroundColor Yellow
@@ -41,17 +44,30 @@ if ($IsWebExecution -or -not (Test-Path $ModulePath)) {
         # Move inner folder content to target ProjectRoot
         # GitHub zips usually extract to 'Optimization-main'
         $SourceDir = Get-ChildItem -Path $ExtractPath -Directory | Select-Object -First 1
+        if (-not $SourceDir) { throw "Failed to extract repository structure." }
+        
         Move-Item -Path "$($SourceDir.FullName)" -Destination $ProjectRoot -Force
         
         # Relaunch the script from disk to get proper $PSScriptRoot context
         $LocalScriptPath = Join-Path $ProjectRoot "Win11-EsportsTweaks.ps1"
         
+        if (-not (Test-Path $LocalScriptPath)) { throw "Main script not found after extraction at $LocalScriptPath" }
+
         Write-Host " [LAUNCHING] Starting Dashboard..." -ForegroundColor Green
-        Start-Process powershell.exe -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$LocalScriptPath`"" -Verb RunAs
+        
+        # Start new process and WAIT for it, keeping the window open if it fails
+        $psi = New-Object System.Diagnostics.ProcessStartInfo
+        $psi.FileName = "powershell.exe"
+        $psi.Arguments = "-NoExit -NoProfile -ExecutionPolicy Bypass -File `"$LocalScriptPath`""
+        $psi.Verb = "runas"
+        $psi.UseShellExecute = $true
+        [System.Diagnostics.Process]::Start($psi)
+        
         exit
     } catch {
         Write-Error "Bootstrapping failed: $($_.Exception.Message)"
         Write-Host "Please download the release ZIP manually from GitHub."
+        Read-Host "Press Enter to exit..."
         exit
     }
 }
@@ -61,18 +77,25 @@ if ($IsWebExecution -or -not (Test-Path $ModulePath)) {
 # Ensure Execution Policy
 if ((Get-ExecutionPolicy) -ne 'Unrestricted' -and (Get-ExecutionPolicy) -ne 'Bypass') {
     Write-Warning "Execution Policy is restricted. Attempting to bypass..."
-    Start-Process powershell.exe -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs
+    $psi = New-Object System.Diagnostics.ProcessStartInfo
+    $psi.FileName = "powershell.exe"
+    $psi.Arguments = "-NoExit -NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`""
+    $psi.Verb = "runas"
+    [System.Diagnostics.Process]::Start($psi)
     exit
 }
 
 try {
+    # Verify Modules Exist
+    if (-not (Test-Path $ModulePath)) { throw "Module directory not found at $ModulePath" }
+
     # Import Core
     Write-Host "Loading Core Modules..." -ForegroundColor Cyan
-    Import-Module (Join-Path $ModulePath "Core\Logger.psm1") -Force
-    Import-Module (Join-Path $ModulePath "Core\Config.psm1") -Force
-    Import-Module (Join-Path $ModulePath "Core\Security.psm1") -Force
-    Import-Module (Join-Path $ModulePath "Core\Registry.psm1") -Force
-    Import-Module (Join-Path $ModulePath "Core\Update.psm1") -Force
+    $CoreModules = @("Logger.psm1", "Config.psm1", "Security.psm1", "Registry.psm1", "Update.psm1")
+    foreach ($mod in $CoreModules) {
+        $path = Join-Path $ModulePath "Core\$mod"
+        if (Test-Path $path) { Import-Module $path -Force } else { Write-Warning "Missing Core Module: $mod" }
+    }
 
     # Initialize Logger
     Initialize-Logger -LogPath (Join-Path ([Environment]::GetFolderPath("Desktop")) "Win11Optimizer.log")
@@ -82,18 +105,23 @@ try {
 
     # Import Feature Modules
     Write-Log "Loading Feature Modules..." -Level INFO
-    Import-Module (Join-Path $ModulePath "Modules\Network.psm1") -Force
-    Import-Module (Join-Path $ModulePath "Modules\CPU.psm1") -Force
-    Import-Module (Join-Path $ModulePath "Modules\GPU.psm1") -Force
-    Import-Module (Join-Path $ModulePath "Modules\System.psm1") -Force
-    Import-Module (Join-Path $ModulePath "Modules\Input.psm1") -Force
+    $FeatureModules = @("Network.psm1", "CPU.psm1", "GPU.psm1", "System.psm1", "Input.psm1")
+    foreach ($mod in $FeatureModules) {
+        $path = Join-Path $ModulePath "Modules\$mod"
+        if (Test-Path $path) { Import-Module $path -Force } else { Write-Log "Missing Feature Module: $mod" -Level WARN }
+    }
 
     # Import Benchmarks
-    Import-Module (Join-Path $ModulePath "Benchmarks\Benchmark.psm1") -Force
+    Import-Module (Join-Path $ModulePath "Benchmarks\Benchmark.psm1") -Force -ErrorAction SilentlyContinue
 
     # Import UI
     Write-Log "Initializing UI..." -Level INFO
-    Import-Module (Join-Path $ModulePath "UI\Dashboard.ps1") -Force
+    $UiModule = Join-Path $ModulePath "UI\Dashboard.ps1"
+    if (Test-Path $UiModule) {
+        Import-Module $UiModule -Force
+    } else {
+        throw "UI Module not found at $UiModule"
+    }
 
     # Check for Updates (Async)
     Start-Job -ScriptBlock {
