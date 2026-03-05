@@ -98,7 +98,7 @@
 
                 <!-- Logo Area -->
                 <StackPanel Grid.Row="0" Margin="0,20,0,40">
-                    <TextBlock Text="OPTIMIZER PRO" FontSize="22" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" LetterSpacing="1"/>
+                    <TextBlock Text="OPTIMIZER PRO" FontSize="22" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
                     <TextBlock Text="ESPORTS EDITION" FontSize="11" Foreground="{StaticResource AccentBrush}" HorizontalAlignment="Center" Opacity="0.9" Margin="0,4,0,0"/>
                 </StackPanel>
 
