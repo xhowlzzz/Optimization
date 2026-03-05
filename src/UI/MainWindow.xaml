@@ -191,7 +191,7 @@
 
                 <!-- Footer -->
                 <StackPanel Grid.Row="2" Margin="0,0,0,24">
-                    <TextBlock Text="v2.0.7" Foreground="{StaticResource TextSecondary}" HorizontalAlignment="Center" FontSize="12" Opacity="0.7"/>
+                    <TextBlock Text="v2.0.8" Foreground="{StaticResource TextSecondary}" HorizontalAlignment="Center" FontSize="12" Opacity="0.7"/>
                     <TextBlock Text="Created by Howl" Foreground="{StaticResource TextSecondary}" HorizontalAlignment="Center" FontSize="11" Opacity="0.5" Margin="0,4,0,0"/>
                 </StackPanel>
             </Grid>
@@ -519,7 +519,7 @@
                 <!-- VIEW: LOGS -->
                 <Grid Name="ViewLogs" Visibility="Collapsed">
                     <Border Style="{StaticResource GlassBorder}" Padding="24">
-                        <TextBox Name="TxtFullLog" Background="Transparent" BorderThickness="0" Foreground="{StaticResource TextSecondary}" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" FontFamily="Consolas" FontSize="14" LineHeight="20"/>
+                        <TextBox Name="TxtFullLog" Background="Transparent" BorderThickness="0" Foreground="{StaticResource TextSecondary}" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" FontFamily="Consolas" FontSize="14"/>
                     </Border>
                 </Grid>
 
