@@ -9,7 +9,7 @@
 
 .NOTES
     Author: Howl
-    Version: 2.0.4 (Stable)
+    Version: 2.0.7 (Stable)
     License: MIT
 #>
 
