@@ -400,18 +400,28 @@ function Invoke-PerformanceBatch {
     )
 
     foreach ($proc in $ifeoList) {
-        $key = Join-Path $ifeo "$($proc.Name)\PerfOptions"
-        if (-not (Test-Path $key)) { New-Item -Path $key -Force | Out-Null }
-        if ($proc.Cpu -ne $null) { Set-RegistryValueSafe -Path $key -Name "CpuPriorityClass" -Value $proc.Cpu -Type DWord }
-        if ($proc.Io -ne $null) { Set-RegistryValueSafe -Path $key -Name "IoPriority" -Value $proc.Io -Type DWord }
-        if ($proc.Page -ne $null) { Set-RegistryValueSafe -Path $key -Name "PagePriority" -Value $proc.Page -Type DWord }
+        try {
+            $key = Join-Path $ifeo "$($proc.Name)\PerfOptions"
+            if (-not (Test-Path $key -ErrorAction SilentlyContinue)) { New-Item -Path $key -Force -ErrorAction Stop | Out-Null }
+            
+            if ($proc.Cpu -ne $null) { Set-RegistryValueSafe -Path $key -Name "CpuPriorityClass" -Value $proc.Cpu -Type DWord }
+            if ($proc.Io -ne $null) { Set-RegistryValueSafe -Path $key -Name "IoPriority" -Value $proc.Io -Type DWord }
+            if ($proc.Page -ne $null) { Set-RegistryValueSafe -Path $key -Name "PagePriority" -Value $proc.Page -Type DWord }
+        } catch {
+            Write-Log "Skipped IFEO for $($proc.Name): $_" -Level WARN
+        }
         
-        # Apply to Wow6432Node as well (32-bit apps)
-        $wowKey = "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\$($proc.Name)\PerfOptions"
-        if (-not (Test-Path $wowKey)) { New-Item -Path $wowKey -Force | Out-Null }
-        if ($proc.Cpu -ne $null) { Set-RegistryValueSafe -Path $wowKey -Name "CpuPriorityClass" -Value $proc.Cpu -Type DWord }
-        if ($proc.Io -ne $null) { Set-RegistryValueSafe -Path $wowKey -Name "IoPriority" -Value $proc.Io -Type DWord }
-        if ($proc.Page -ne $null) { Set-RegistryValueSafe -Path $wowKey -Name "PagePriority" -Value $proc.Page -Type DWord }
+        try {
+            # Apply to Wow6432Node as well (32-bit apps)
+            $wowKey = "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\$($proc.Name)\PerfOptions"
+            if (-not (Test-Path $wowKey -ErrorAction SilentlyContinue)) { New-Item -Path $wowKey -Force -ErrorAction Stop | Out-Null }
+            
+            if ($proc.Cpu -ne $null) { Set-RegistryValueSafe -Path $wowKey -Name "CpuPriorityClass" -Value $proc.Cpu -Type DWord }
+            if ($proc.Io -ne $null) { Set-RegistryValueSafe -Path $wowKey -Name "IoPriority" -Value $proc.Io -Type DWord }
+            if ($proc.Page -ne $null) { Set-RegistryValueSafe -Path $wowKey -Name "PagePriority" -Value $proc.Page -Type DWord }
+        } catch {
+            Write-Log "Skipped WOW64 IFEO for $($proc.Name): $_" -Level WARN
+        }
     }
 
     # 54. Aggressive Windows Defender Disable (Ancel's List)
