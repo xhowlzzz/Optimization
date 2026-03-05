@@ -495,7 +495,11 @@
                                         </Button.Template>
                                     </Button>
                                 </Grid>
-                                <TextBlock Text="Coming in v2.1" Foreground="{StaticResource TextSecondary}" FontSize="14" FontWeight="SemiBold"/>
+                                
+                                <Grid>
+                                    <ProgressBar Name="PbDisk" Height="8" Maximum="1000" Value="0" Background="#334155" Foreground="{StaticResource AccentBrush}"/>
+                                </Grid>
+                                <TextBlock Name="TxtDiskResult" Text="Ready to start" Foreground="{StaticResource TextSecondary}" Margin="0,12,0,0" FontSize="14" FontWeight="SemiBold"/>
                             </StackPanel>
                         </Border>
                     </StackPanel>
@@ -516,7 +520,7 @@
                             <StackPanel>
                                 <CheckBox Style="{StaticResource ToggleSwitch}" Content="Create System Restore Point" IsChecked="True" Foreground="White" Margin="0,0,0,24" FontSize="16" FontWeight="SemiBold"/>
                                 <CheckBox Style="{StaticResource ToggleSwitch}" Content="Enable File Logging" IsChecked="True" Foreground="White" Margin="0,0,0,24" FontSize="16" FontWeight="SemiBold"/>
-                                <CheckBox Style="{StaticResource ToggleSwitch}" Content="Check for Updates on Startup" IsChecked="True" Foreground="White" Margin="0,0,0,24" FontSize="16" FontWeight="SemiBold"/>
+                                <CheckBox Name="ChkUpdates" Style="{StaticResource ToggleSwitch}" Content="Check for Updates on Startup" IsChecked="True" Foreground="White" Margin="0,0,0,24" FontSize="16" FontWeight="SemiBold"/>
                                 
                                 <Rectangle Height="1" Fill="#334155" Margin="0,8,0,32"/>
                                 
