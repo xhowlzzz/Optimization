@@ -11,7 +11,7 @@ jobs:
     runs-on: windows-latest
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: Run PSScriptAnalyzer
       shell: powershell
@@ -26,27 +26,27 @@ jobs:
     - name: Create Release Zip
       shell: powershell
       run: |
-        Compress-Archive -Path .\src, .\Win11-EsportsTweaks.ps1, .\README.md -DestinationPath Win11-EsportsTweaks.zip
+        Compress-Archive -Path .\src, .\IlumnulOS.ps1, .\README.md -DestinationPath IlumnulOS.zip
 
     - name: Upload Artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
-        name: Win11-EsportsTweaks
-        path: Win11-EsportsTweaks.zip
+        name: IlumnulOS
+        path: IlumnulOS.zip
 
   release:
     needs: build
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/download-artifact@v3
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
         with:
-          name: Win11-EsportsTweaks
+          name: IlumnulOS
       
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
-          files: Win11-EsportsTweaks.zip
+          files: IlumnulOS.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
