@@ -24,6 +24,11 @@ function Update-Win11Tweaks {
                 $release = $tags | Select-Object -First 1
                 $latestVersion = $release.name -replace 'v',''
                 $downloadUrl = $release.zipball_url
+                
+                # Sanitize version string (ensure it's X.Y.Z)
+                if ($latestVersion -match "^(\d+\.\d+\.\d+)") {
+                    $latestVersion = $matches[1]
+                }
             } else {
                 # No tags either, assume main branch is latest but versioning is unknown
                 Write-Log -Message "No version tags found. Skipping update check." -Level INFO -Component "Updater"
