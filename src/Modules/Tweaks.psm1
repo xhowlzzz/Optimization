@@ -161,10 +161,8 @@ function Invoke-UITweaks {
     Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "ListviewShadow" -Value 0 -Type DWord
     Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects" -Name "VisualFXSetting" -Value 3 -Type DWord
     
-    # Wallpaper (Solid Black)
-    Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Wallpapers" -Name "BackgroundType" -Value 1 -Type DWord
-    Set-RegistryValueSafe -Path "HKCU:\Control Panel\Desktop" -Name "WallPaper" -Value ""
-    Set-RegistryValueSafe -Path "HKCU:\Control Panel\Colors" -Name "Background" -Value "0 0 0"
+    # Wallpaper (Custom)
+    Invoke-WallpaperApply
     
     # Lock Screen
     Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\System" -Name "DisableLogonBackgroundImage" -Value 1 -Type DWord
@@ -202,6 +200,52 @@ function Invoke-UITweaks {
     
     # New: Disable Sync Provider Notifications
     Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "ShowSyncProviderNotifications" -Value 0 -Type DWord
+}
+
+function Invoke-WallpaperApply {
+    Write-Log -Message "Applying Custom Wallpaper..." -Level INFO -Component "Tweaks"
+    
+    # Define paths
+    # Assuming the script is running from root or src/Modules, we need to find assets
+    # $PSScriptRoot is src/Modules
+    $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..\..")
+    $sourceWallpaper = Join-Path $repoRoot "assets\Background.png"
+    
+    # Persistent Destination (C:\ProgramData is standard for shared app data)
+    $destDir = "C:\ProgramData\IlumnulOS"
+    $destWallpaper = Join-Path $destDir "Background.png"
+    
+    if (Test-Path $sourceWallpaper) {
+        # Create destination directory if it doesn't exist
+        if (-not (Test-Path $destDir)) {
+            New-Item -Path $destDir -ItemType Directory -Force | Out-Null
+        }
+        
+        # Copy file
+        Copy-Item -Path $sourceWallpaper -Destination $destWallpaper -Force
+        
+        # Apply Wallpaper via Registry
+        # BackgroundType: 0 = Picture, 1 = Solid Color, 2 = Slideshow
+        Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Wallpapers" -Name "BackgroundType" -Value 0 -Type DWord
+        Set-RegistryValueSafe -Path "HKCU:\Control Panel\Desktop" -Name "WallPaper" -Value $destWallpaper -Type String
+        # WallpaperStyle: 2 = Stretch, 6 = Fit, 10 = Fill (Best for most screens)
+        Set-RegistryValueSafe -Path "HKCU:\Control Panel\Desktop" -Name "WallpaperStyle" -Value "10" -Type String
+        Set-RegistryValueSafe -Path "HKCU:\Control Panel\Desktop" -Name "TileWallpaper" -Value "0" -Type String
+        
+        # Force Refresh
+        # Use SystemParametersInfo via C# signature or RUNDLL32 (RUNDLL is easier but less reliable, C# is better)
+        # We'll use a simple RUNDLL call first, which usually works for wallpapers
+        RUNDLL32.EXE user32.dll,UpdatePerUserSystemParameters
+        
+        Write-Log -Message "Wallpaper set to: $destWallpaper" -Level SUCCESS -Component "Tweaks"
+    } else {
+        Write-Log -Message "Wallpaper file not found at: $sourceWallpaper. Keeping default." -Level WARN -Component "Tweaks"
+        
+        # Fallback to Solid Black if custom wallpaper missing (keep existing behavior fallback)
+        Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Wallpapers" -Name "BackgroundType" -Value 1 -Type DWord
+        Set-RegistryValueSafe -Path "HKCU:\Control Panel\Desktop" -Name "WallPaper" -Value ""
+        Set-RegistryValueSafe -Path "HKCU:\Control Panel\Colors" -Name "Background" -Value "0 0 0"
+    }
 }
 
 function Invoke-SystemTweaks {
@@ -317,4 +361,4 @@ function Invoke-AllTweaks {
     Invoke-SystemTweaks
 }
 
-Export-ModuleMember -Function Invoke-AllTweaks, Invoke-PrivacyTweaks, Invoke-UITweaks, Invoke-SystemTweaks
+Export-ModuleMember -Function Invoke-AllTweaks, Invoke-PrivacyTweaks, Invoke-UITweaks, Invoke-SystemTweaks, Invoke-WallpaperApply
