@@ -117,6 +117,42 @@ function Show-Dashboard {
         # Show target
         $view.Visibility = 'Visible'
         $c.TxtPageTitle.Text = $title
+
+        # Special logic for Benchmark view
+        if ($view.Name -eq "ViewBenchmarks") {
+            Initialize-Benchmarks $c
+        }
+    }
+
+    function Initialize-Benchmarks {
+        param($c)
+        # Find new controls if not already bound
+        if (-not $c.ContainsKey('BtnRunPing')) {
+            $c.BtnRunPing = $c.Window.FindName("BtnRunPing")
+            $c.TxtPingResult = $c.Window.FindName("TxtPingResult")
+            $c.PbPing = $c.Window.FindName("PbPing")
+            
+            $c.BtnRunPing.Add_Click({
+                $c.BtnRunPing.IsEnabled = $false
+                $c.TxtPingResult.Text = "Testing..."
+                $c.PbPing.IsIndeterminate = $true
+                
+                $c.Window.Dispatcher.Invoke({
+                    Start-Sleep -Milliseconds 500
+                    $ping = Test-Connection -ComputerName 1.1.1.1 -Count 4 -ErrorAction SilentlyContinue | Measure-Object -Property ResponseTime -Average
+                    
+                    $c.PbPing.IsIndeterminate = $false
+                    if ($ping) {
+                        $avg = [math]::Round($ping.Average)
+                        $c.TxtPingResult.Text = "$avg ms (Cloudflare DNS)"
+                        $c.PbPing.Value = [math]::Clamp((100 - $avg), 0, 100)
+                    } else {
+                        $c.TxtPingResult.Text = "Timeout"
+                    }
+                    $c.BtnRunPing.IsEnabled = $true
+                }, [System.Windows.Threading.DispatcherPriority]::Background)
+            })
+        }
     }
 
     $c.BtnDash.Add_Click({ & $navAction $c.BtnDash $c.ViewDash "System Dashboard" })
