@@ -189,7 +189,6 @@ function Invoke-AdvancedDebloat {
     # Note: System.psm1 already handles a massive list of Appx packages.
     # Adding a few more obscure ones found in deep debloat scripts.
     $obscureBloat = @(
-        "Microsoft.Windows.PeopleExperienceHost",
         "Microsoft.Windows.ContentDeliveryManager", # Aggressive: Breaks Spotlight/Lock Screen images
         "Microsoft.Windows.SecureAssessmentBrowser",
         "Microsoft.Xbox.TCUI",
@@ -198,8 +197,12 @@ function Invoke-AdvancedDebloat {
         "Microsoft.XboxSpeechToTextOverlay"
     )
     foreach ($app in $obscureBloat) {
-        Get-AppxPackage -Name "*$app*" -AllUsers -ErrorAction SilentlyContinue | Remove-AppxPackage -AllUsers -ErrorAction SilentlyContinue
-        Get-AppxProvisionedPackage -Online | Where-Object { $_.DisplayName -like "*$app*" } | Remove-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue
+        try {
+            Get-AppxPackage -Name "*$app*" -AllUsers -ErrorAction SilentlyContinue | Remove-AppxPackage -AllUsers -ErrorAction Stop
+            Get-AppxProvisionedPackage -Online | Where-Object { $_.DisplayName -like "*$app*" } | Remove-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue
+        } catch {
+            Write-Log -Message "Skipped protected app: $app" -Level WARN -Component "AdvancedDebloat"
+        }
     }
 
     # 8. Services (Aggressive Disabling)
