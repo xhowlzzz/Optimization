@@ -58,12 +58,10 @@ function Invoke-GpuOptimization {
     Write-Log -Message "Disabled Game DVR & Fullscreen Optimizations" -Level SUCCESS -Component "GPU"
 
     # 4. Import NVIDIA Profile (if available)
-    # We check if nvidiaInspector.exe is available in the script root or a tools folder
-    # For now, we will assume if the user has put nvidiaInspector.exe next to the .nip file, we can run it.
+    # We check if nvidiaInspector.exe is available in the Tools folder
     
-    $nipPath = Join-Path $PSScriptRoot "..\..\IlumnulOS.nip"
-    # Try to find nvidiaInspector.exe in common locations or adjacent to the script
-    $inspectorPath = Join-Path $PSScriptRoot "..\..\nvidiaInspector.exe"
+    $nipPath = Join-Path $PSScriptRoot "..\..\Tools\IlumnulOS.nip"
+    $inspectorPath = Join-Path $PSScriptRoot "..\..\Tools\nvidiaInspector.exe"
     
     if (Test-Path $nipPath) {
         if (Test-Path $inspectorPath) {
@@ -75,7 +73,7 @@ function Invoke-GpuOptimization {
                 Write-Log -Message "Failed to import NVIDIA Profile" -Level ERROR -Component "GPU"
             }
         } else {
-            Write-Log -Message "NVIDIA Profile found ($nipPath) but nvidiaInspector.exe is missing. Please place nvidiaInspector.exe in the root folder for auto-import." -Level WARN -Component "GPU"
+            Write-Log -Message "NVIDIA Profile found ($nipPath) but nvidiaInspector.exe is missing in Tools folder." -Level WARN -Component "GPU"
         }
     }
 }
