@@ -3,7 +3,7 @@
 # âš¡ Optimizare
 ### The Ultimate Windows Optimization Suite
 
-<img src="assets/preview.svg" alt="Optimizare Dashboard Preview" width="800">
+<img src="assets/logo.png" alt="Optimizare Logo" width="300">
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![PowerShell](https://img.shields.io/badge/PowerShell-5.1%2B-blue.svg)](https://github.com/PowerShell/PowerShell)
