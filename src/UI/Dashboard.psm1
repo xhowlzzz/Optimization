@@ -59,6 +59,7 @@ function Show-Dashboard {
         BtnRun = $window.FindName("BtnRunOptimization")
         TxtLog = $window.FindName("TxtLogPreview")
         TxtFullLog = $window.FindName("TxtFullLog")
+        ChkUpdates = $window.FindName("ChkUpdates")
     }
 
     # ---------------------------------------------------------
@@ -93,6 +94,76 @@ function Show-Dashboard {
     $c.BtnClose.Add_Click({ $window.Close() })
     $c.BtnMinimize.Add_Click({ $window.WindowState = 'Minimized' })
 
+    # ---------------------------------------------------------
+    # HELPER FUNCTIONS
+    # ---------------------------------------------------------
+
+    function Initialize-Benchmarks {
+        param($c)
+        
+        # Ping Test
+        if (-not $c.ContainsKey('BtnRunPing')) {
+            $c.BtnRunPing = $c.Window.FindName("BtnRunPing")
+            $c.TxtPingResult = $c.Window.FindName("TxtPingResult")
+            $c.PbPing = $c.Window.FindName("PbPing")
+            
+            $c.BtnRunPing.Add_Click({
+                $c.BtnRunPing.IsEnabled = $false
+                $c.TxtPingResult.Text = "Testing..."
+                $c.PbPing.IsIndeterminate = $true
+                
+                $c.Window.Dispatcher.Invoke({
+                    Start-Sleep -Milliseconds 500
+                    $ping = Test-Connection -ComputerName 1.1.1.1 -Count 4 -ErrorAction SilentlyContinue | Measure-Object -Property ResponseTime -Average
+                    
+                    $c.PbPing.IsIndeterminate = $false
+                    if ($ping) {
+                        $avg = [math]::Round($ping.Average)
+                        $c.TxtPingResult.Text = "$avg ms (Cloudflare DNS)"
+                        $c.PbPing.Value = [math]::Clamp((100 - $avg), 0, 100)
+                    } else {
+                        $c.TxtPingResult.Text = "Timeout"
+                    }
+                    $c.BtnRunPing.IsEnabled = $true
+                }, [System.Windows.Threading.DispatcherPriority]::Background)
+            })
+        }
+
+        # Disk Test
+        if (-not $c.ContainsKey('BtnRunDisk')) {
+            $c.BtnRunDisk = $c.Window.FindName("BtnRunDisk")
+            $c.TxtDiskResult = $c.Window.FindName("TxtDiskResult")
+            $c.PbDisk = $c.Window.FindName("PbDisk")
+            
+            $c.BtnRunDisk.Add_Click({
+                $c.BtnRunDisk.IsEnabled = $false
+                $c.TxtDiskResult.Text = "Testing (may take 1-2 mins)..."
+                $c.PbDisk.IsIndeterminate = $true
+                
+                $c.Window.Dispatcher.Invoke({
+                    Start-Sleep -Milliseconds 500
+                    
+                    # Run WinSAT if needed
+                    $disk = Get-CimInstance Win32_WinSAT
+                    if (-not $disk -or $disk.DiskScore -eq 0) {
+                        Start-Process -FilePath "winsat" -ArgumentList "disk -drive c -ran -read -count 10" -WindowStyle Hidden -Wait
+                        $disk = Get-CimInstance Win32_WinSAT
+                    }
+                    
+                    $c.PbDisk.IsIndeterminate = $false
+                    if ($disk) {
+                        $score = $disk.DiskScore
+                        $c.TxtDiskResult.Text = "Disk Score: $score / 9.9"
+                        $c.PbDisk.Value = ($score * 100)
+                    } else {
+                        $c.TxtDiskResult.Text = "Assessment Failed (Run as Admin)"
+                    }
+                    $c.BtnRunDisk.IsEnabled = $true
+                }, [System.Windows.Threading.DispatcherPriority]::Background)
+            })
+        }
+    }
+
     # Navigation Logic
     $navAction = {
         param($sender, $view, $title)
@@ -124,42 +195,27 @@ function Show-Dashboard {
         }
     }
 
-    function Initialize-Benchmarks {
-        param($c)
-        # Find new controls if not already bound
-        if (-not $c.ContainsKey('BtnRunPing')) {
-            $c.BtnRunPing = $c.Window.FindName("BtnRunPing")
-            $c.TxtPingResult = $c.Window.FindName("TxtPingResult")
-            $c.PbPing = $c.Window.FindName("PbPing")
-            
-            $c.BtnRunPing.Add_Click({
-                $c.BtnRunPing.IsEnabled = $false
-                $c.TxtPingResult.Text = "Testing..."
-                $c.PbPing.IsIndeterminate = $true
-                
-                $c.Window.Dispatcher.Invoke({
-                    Start-Sleep -Milliseconds 500
-                    $ping = Test-Connection -ComputerName 1.1.1.1 -Count 4 -ErrorAction SilentlyContinue | Measure-Object -Property ResponseTime -Average
-                    
-                    $c.PbPing.IsIndeterminate = $false
-                    if ($ping) {
-                        $avg = [math]::Round($ping.Average)
-                        $c.TxtPingResult.Text = "$avg ms (Cloudflare DNS)"
-                        $c.PbPing.Value = [math]::Clamp((100 - $avg), 0, 100)
-                    } else {
-                        $c.TxtPingResult.Text = "Timeout"
-                    }
-                    $c.BtnRunPing.IsEnabled = $true
-                }, [System.Windows.Threading.DispatcherPriority]::Background)
-            })
-        }
-    }
-
     $c.BtnDash.Add_Click({ & $navAction $c.BtnDash $c.ViewDash "System Dashboard" })
     $c.BtnTweaks.Add_Click({ & $navAction $c.BtnTweaks $c.ViewTweaks "Performance Tweaks" })
     $c.BtnBench.Add_Click({ & $navAction $c.BtnBench $c.ViewBench "Benchmarks" })
     $c.BtnLogs.Add_Click({ & $navAction $c.BtnLogs $c.ViewLogs "Activity Logs" })
     $c.BtnSet.Add_Click({ & $navAction $c.BtnSet $c.ViewSet "Settings" })
+
+    # ---------------------------------------------------------
+    # AUTO-UPDATE CHECK (Async)
+    # ---------------------------------------------------------
+    $updateJob = $null
+    if ($c.ChkUpdates -and $c.ChkUpdates.IsChecked -eq $true) {
+        $updatePath = Join-Path $PSScriptRoot "..\Core\Update.psm1"
+        if (Test-Path $updatePath) {
+            $updateJob = Start-Job -ScriptBlock {
+                param($path)
+                function Write-Log { param($Message, $Level, $Component) Write-Output "[$Level] $Component : $Message" }
+                Import-Module $path
+                Update-Win11Tweaks -CurrentVersion "2.0.6"
+            } -ArgumentList $updatePath
+        }
+    }
 
     # Metrics Timer
     $timer = New-Object System.Windows.Threading.DispatcherTimer
@@ -181,6 +237,15 @@ function Show-Dashboard {
             $c.PbRam.Value = $perc
             $c.TxtRamDetails.Text = "$usedGB GB Used / $([math]::Round($mem.TotalVisibleMemorySize / 1MB, 1)) GB Total"
             
+            # Check Update Job
+            if ($updateJob -and $updateJob.State -ne 'Running') {
+                Receive-Job -Job $updateJob | ForEach-Object {
+                    $c.TxtLog.AppendText("$($_)`n")
+                    $c.TxtLog.ScrollToEnd()
+                }
+                Remove-Job -Job $updateJob -Force
+                $updateJob = $null
+            }
         } catch {}
     })
     $timer.Start()
