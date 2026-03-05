@@ -233,8 +233,12 @@ function Invoke-AdvancedDebloat {
         "\Microsoft\Windows\Feedback\Siuf\DmClient",
         "\Microsoft\Windows\Feedback\Siuf\DmClientOnScenarioDownload"
     )
-    foreach ($task in $tasksToDisable) {
-        Disable-ScheduledTask -TaskPath $task -ErrorAction SilentlyContinue
+    foreach ($fullPath in $tasksToDisable) {
+        # Split into Path and Name to avoid interactive prompts
+        $taskName = $fullPath.Split('\')[-1]
+        $taskPath = $fullPath.Substring(0, $fullPath.LastIndexOf('\') + 1)
+        
+        Get-ScheduledTask -TaskName $taskName -TaskPath $taskPath -ErrorAction SilentlyContinue | Disable-ScheduledTask -ErrorAction SilentlyContinue
     }
 }
 
