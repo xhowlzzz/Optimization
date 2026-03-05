@@ -1,78 +1,63 @@
-# IlumnulOS Optimizer
+# Optimizare âš¡
 
-![IlumnulOS Logo](assets/logo.png)
+**Optimizare** (or IlumnulOS Optimizer) is a powerful, PowerShell-based Windows optimization suite designed to squeeze every last drop of performance from your system. It combines deep registry tweaks, service disabling, network stack tuning, and bloatware removal into a single, easy-to-use utility.
 
-**The definitive, professional-grade Windows 11 optimization suite for competitive gaming.**
+> âš ï¸ **Warning**: This tool applies aggressive optimizations. It is recommended to create a System Restore point before running.
 
-[![Build Status](https://github.com/xhowlzzz/Optimization/actions/workflows/build.yml/badge.svg)](https://github.com/xhowlzzz/Optimization/actions)
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-Windows%2011-0078d7.svg)](https://www.microsoft.com/windows)
-[![Game](https://img.shields.io/badge/game-CS2%20%7C%20Valorant%20%7C%20Apex-orange.svg)]()
+## ðŸš€ Features
 
----
+### **1. Extreme Performance Tweaks**
+*   **Process Priority (IFEO)**: Hard-coded Realtime/High priority for critical system processes (`dwm.exe`, `ntoskrnl.exe`) and Low priority for background tasks (`SearchIndexer.exe`, `lsass.exe`).
+*   **Multimedia Class Scheduler (MMCSS)**: Custom "Gaming" profile with `GPU Priority=8` and `Scheduling Category=High`.
+*   **Kernel Optimizations**: Disabled `MitigationOptions` (Spectre/Meltdown patches), Memory Compression, and Page Combining for raw throughput.
+*   **Power Throttling**: Disabled globally and specifically for Modern Standby (`CoalescingTimerInterval=0`).
 
-## 🚀 Why Choose IlumnulOS?
+### **2. Deep Debloating**
+*   **Appx Removal**: Automatically removes ~30 bloatware apps (Bing, Solitaire, OfficeHub, Phone, Maps, etc.) while safely skipping protected system components.
+*   **Telemetry Purge**:
+    *   Disables ~40 Scheduled Tasks (CEIP, SQM, Family Safety).
+    *   Blocks ~35 WMI AutoLoggers (Trace Sessions).
+    *   Hard disables `DiagTrack` and `dmwappushservice`.
+*   **Cortana & OneDrive**: Aggressive registry disables and full uninstall routines.
 
-This isn't just another batch script. IlumnulOS is a **commercial-grade, modular PowerShell framework** designed to strip Windows 11 down to its bare essentials for maximum frame rates and the lowest possible input latency.
+### **3. Gaming & Graphics**
+*   **NVIDIA/AMD Optimization**:
+    *   Disables HDCP, TCC, and Telemetry.
+    *   Forces **Contiguous Memory Allocation** (`PreferSystemMemoryContiguous`).
+    *   Sets **Latency Tolerance** to `1` (Lowest) for DirectX Kernel and Power management.
+    *   Enables **MPO** (Multiplane Overlay) and **FSO** (Full Screen Optimizations).
+*   **Input Lag Reduction**: Disables USB Selective Suspend, Sticky Keys shortcuts, and optimizes Mouse/Keyboard data queue sizes.
 
-Trusted by competitive players and system tuners for:
-- **Zero Bloat**: Removes telemetry, pre-installed apps, and background services.
-- **Hardware Awareness**: Automatically detects AMD Ryzen vs Intel Core architectures and applies vendor-specific power plans.
-- **Safety First**: Features a robust rollback system with System Restore points and JSON-based configuration snapshots.
-- **Real-Time Metrics**: Monitor CPU/RAM usage and optimization health directly from the dashboard.
+### **4. Network Tuning**
+*   **TCP Stack**: Tuned `TcpMaxDataRetransmissions`, disabled `Tcp1323Opts` (Timestamps), and optimized `MaxFreeTcbs` for raw packet throughput.
+*   **Throttling**: Disabled `NetworkThrottlingIndex` and set `SystemResponsiveness` to 10.
 
-## ✨ Key Features
+### **5. Hardware Disables (DevManView)**
+*   Automatically downloads `DevManView` to disable high-overhead devices:
+    *   High Precision Event Timer (HPET)
+    *   WAN Miniports (IP, IPv6, PPTP, etc.)
+    *   Intel Management Engine (IME) & SMBus
+    *   System Speaker & Composite Bus Enumerator
 
-| Feature | Description | Benefit |
-| :--- | :--- | :--- |
-| **Ultimate Power Plan** | Unlocks hidden power schemes. | Forces 100% CPU frequency, eliminating micro-stutters. |
-| **Network Stack Tuning** | Optimizes TCP/IP, Nagle's Algorithm, and NIC offloads. | Reduces ping variance and packet loss. |
-| **GPU Scheduling** | Enables HAGS and MSI Mode for supported GPUs. | Reduces CPU overhead and input lag. |
-| **Input Latency** | Adjusts USB polling rates and queue sizes. | Provides a "1000Hz feel" for mouse movement. |
-| **Service Debloat** | Disables 50+ non-essential services. | Frees up RAM and CPU cycles. |
-| **Privacy Hardening** | Blocks telemetry and data collection. | Reduces background network activity. |
+### **6. PC Cleaner**
+*   Safely cleans:
+    *   Temp Folders (`%TEMP%`, `C:\Windows\Temp`)
+    *   Prefetch
+    *   Recycle Bin
+    *   Thumbcache
+    *   System Logs (`CBS.log`, `DISM.log`)
 
-## 📥 Installation
+## ðŸ› ï¸ Usage
 
-### Method 1: One-Click Run (Recommended)
-Open PowerShell as Administrator and run:
-```powershell
-iwr -useb https://raw.githubusercontent.com/xhowlzzz/Optimization/main/IlumnulOS.ps1 | iex
-```
+1.  **Run as Administrator**: Right-click `IlumnulOS.ps1` and select "Run with PowerShell".
+2.  **Dashboard**: The tool will launch a GUI dashboard.
+3.  **Apply Tweaks**: Click "Optimize" to apply all tweaks. The log window will show real-time progress.
+4.  **Reboot**: Restart your computer for all changes (especially Registry and Service disables) to take effect.
 
-### Method 2: Manual Install
-1. Download the latest release from the [Releases](https://github.com/xhowlzzz/Optimization/releases) page.
-2. Extract the ZIP file.
-3. Right-click `IlumnulOS.ps1` and select **Run with PowerShell**.
-
-## 🖥️ The Dashboard
-
-The new WPF-based dashboard provides a centralized hub for all optimizations.
-
-- **Dashboard**: View real-time system metrics and run the one-click optimization.
-- **Tweaks**: Toggle individual modules (Network, CPU, GPU, etc.).
-- **Benchmarks**: Measure system latency and disk speed.
-- **Logs**: View detailed execution logs for troubleshooting.
-
-## 🛡️ Safety & Security
-
-- **System Restore**: A restore point is created automatically before any changes are applied.
-- **Non-Destructive**: Critical system files are left untouched. We only modify configuration.
-- **Open Source**: All code is transparent and available for audit.
-
-## 🤝 Contributing
-
-We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
-
-1. Fork the repository.
-2. Create a feature branch (`git checkout -b feature/AmazingFeature`).
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`).
-4. Push to the branch (`git push origin feature/AmazingFeature`).
-5. Open a Pull Request.
-
-## 📜 License
-
-Distributed under the MIT License. See `LICENSE` for more information.
+## ðŸ“ Credits
+*   **xhowlzzz**: Core developer.
+*   **Ancel**: Source of many deep registry and batch optimizations.
+*   **MelodyTheNeko**: Latency tolerance research.
 
 ---
-*Created by Howl for the CS2 Community.*
+*Built for Windows 10 & 11.*
