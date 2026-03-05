@@ -205,7 +205,7 @@
             </Grid.RowDefinitions>
 
             <!-- Title Bar -->
-            <Grid Grid.Row="0">
+            <Grid Grid.Row="0" Name="TitleBar" Background="Transparent">
                 <TextBlock Name="TxtPageTitle" Text="System Dashboard" VerticalAlignment="Center" Margin="40,0,0,0" FontSize="22" FontWeight="Bold" Foreground="White">
                     <TextBlock.Effect>
                         <DropShadowEffect BlurRadius="20" ShadowDepth="0" Opacity="0.4" Color="Black"/>
