@@ -371,6 +371,118 @@ function Invoke-PerformanceBatch {
     Set-RegistryValueSafe -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\microphone" -Name "Value" -Value "Allow" -Type String
     Set-RegistryValueSafe -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\webcam" -Name "Value" -Value "Allow" -Type String
 
+    # 51. Disable Windows Error Reporting (WER)
+    $werPolicies = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Error Reporting"
+    Set-RegistryValueSafe -Path $werPolicies -Name "Disabled" -Value 1 -Type DWord
+    Set-RegistryValueSafe -Path $werPolicies -Name "DoReport" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path $werPolicies -Name "LoggingDisabled" -Value 1 -Type DWord
+    Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\Policies\Microsoft\PCHealth\ErrorReporting" -Name "DoReport" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\Microsoft\Windows\Windows Error Reporting" -Name "Disabled" -Value 1 -Type DWord
+
+    # 52. Service Priorities & Boost (Advanced)
+    Set-RegistryValueSafe -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\I/O System" -Name "PassiveIntRealTimeWorkerPriority" -Value 18 -Type DWord
+    Set-RegistryValueSafe -Path "HKLM:\SYSTEM\CurrentControlSet\Control\KernelVelocity" -Name "DisableFGBoostDecay" -Value 1 -Type DWord
+
+    # 53. IFEO Process Priorities (Image File Execution Options)
+    # WARNING: Hardcoding priorities can be risky. Using Ancel's values.
+    $ifeo = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options"
+    $ifeoList = @(
+        @{Name="dwm.exe"; Cpu=4; Io=3; Page=$null}, # Realtime/High
+        @{Name="lsass.exe"; Cpu=1; Io=0; Page=0},   # Low/VeryLow (Security)
+        @{Name="ntoskrnl.exe"; Cpu=4; Io=3; Page=$null}, # Realtime
+        @{Name="SearchIndexer.exe"; Cpu=1; Io=0; Page=$null}, # Low
+        @{Name="svchost.exe"; Cpu=1; Io=$null; Page=$null}, # Low (Careful!)
+        @{Name="TrustedInstaller.exe"; Cpu=1; Io=0; Page=$null}, # Low
+        @{Name="wuauclt.exe"; Cpu=1; Io=0; Page=$null}, # Low
+        @{Name="audiodg.exe"; Cpu=2; Io=$null; Page=$null}, # Normal (Audio Glitch prevention usually needs High, Ancel sets Normal?)
+        @{Name="MsMpEng.exe"; Cpu=1; Io=$null; Page=$null}, # Defender Low
+        @{Name="MsMpEngCP.exe"; Cpu=1; Io=$null; Page=$null} # Defender Low
+    )
+
+    foreach ($proc in $ifeoList) {
+        $key = Join-Path $ifeo "$($proc.Name)\PerfOptions"
+        if (-not (Test-Path $key)) { New-Item -Path $key -Force | Out-Null }
+        if ($proc.Cpu -ne $null) { Set-RegistryValueSafe -Path $key -Name "CpuPriorityClass" -Value $proc.Cpu -Type DWord }
+        if ($proc.Io -ne $null) { Set-RegistryValueSafe -Path $key -Name "IoPriority" -Value $proc.Io -Type DWord }
+        if ($proc.Page -ne $null) { Set-RegistryValueSafe -Path $key -Name "PagePriority" -Value $proc.Page -Type DWord }
+        
+        # Apply to Wow6432Node as well (32-bit apps)
+        $wowKey = "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\$($proc.Name)\PerfOptions"
+        if (-not (Test-Path $wowKey)) { New-Item -Path $wowKey -Force | Out-Null }
+        if ($proc.Cpu -ne $null) { Set-RegistryValueSafe -Path $wowKey -Name "CpuPriorityClass" -Value $proc.Cpu -Type DWord }
+        if ($proc.Io -ne $null) { Set-RegistryValueSafe -Path $wowKey -Name "IoPriority" -Value $proc.Io -Type DWord }
+        if ($proc.Page -ne $null) { Set-RegistryValueSafe -Path $wowKey -Name "PagePriority" -Value $proc.Page -Type DWord }
+    }
+
+    # 54. Aggressive Windows Defender Disable (Ancel's List)
+    $defPolicies = "HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender"
+    Set-RegistryValueSafe -Path "$defPolicies\Reporting" -Name "DisableGenericReports" -Value 1 -Type DWord
+    Set-RegistryValueSafe -Path "$defPolicies\Reporting" -Name "DisableEnhancedNotifications" -Value 1 -Type DWord
+    Set-RegistryValueSafe -Path "$defPolicies\Spynet" -Name "LocalSettingOverrideSpynetReporting" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path "$defPolicies\Spynet" -Name "SpynetReporting" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path "$defPolicies\Spynet" -Name "SubmitSamplesConsent" -Value 2 -Type DWord # Never send
+    Set-RegistryValueSafe -Path "$defPolicies\SmartScreen" -Name "ConfigureAppInstallControlEnabled" -Value 0 -Type DWord
+    
+    # Set Threat Default Action to 6 (Unknown/NoAction)
+    Set-RegistryValueSafe -Path "$defPolicies\Threats" -Name "Threats_ThreatSeverityDefaultAction" -Value 1 -Type DWord
+    $threatActions = "$defPolicies\Threats\ThreatSeverityDefaultAction"
+    foreach ($sev in @("1","2","4","5")) { Set-RegistryValueSafe -Path $threatActions -Name $sev -Value "6" -Type String }
+    
+    Set-RegistryValueSafe -Path "$defPolicies\UX Configuration" -Name "Notification_Suppress" -Value 1 -Type DWord
+    Set-RegistryValueSafe -Path $defPolicies -Name "DisableRoutinelyTakingAction" -Value 1 -Type DWord
+    Set-RegistryValueSafe -Path $defPolicies -Name "ServiceKeepAlive" -Value 0 -Type DWord
+    
+    $rtProt = "$defPolicies\Real-Time Protection"
+    Set-RegistryValueSafe -Path $rtProt -Name "DisableBehaviorMonitoring" -Value 1 -Type DWord
+    Set-RegistryValueSafe -Path $rtProt -Name "DisableIOAVProtection" -Value 1 -Type DWord
+    Set-RegistryValueSafe -Path $rtProt -Name "DisableOnAccessProtection" -Value 1 -Type DWord
+    
+    Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender Security Center\Notifications" -Name "DisableNotifications" -Value 1 -Type DWord
+    Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\Policies\Microsoft\MRT" -Name "DontReportInfectionInformation" -Value 1 -Type DWord
+    Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\Policies\Microsoft\MicrosoftEdge\PhishingFilter" -Name "EnabledV9" -Value 0 -Type DWord
+
+    # Disable Defender Services (Registry Start Type)
+    $defServices = @("Sense", "WdNisSvc", "WinDefend", "SecurityHealthService", "wscsvc")
+    foreach ($svc in $defServices) {
+        Set-RegistryValueSafe -Path "HKLM:\SYSTEM\CurrentControlSet\Services\$svc" -Name "Start" -Value 4 -Type DWord
+    }
+
+    # 55. Full Screen Optimizations (FSO) - ENABLED? (Ancel's script says "Enable FSO" but sets flags to 0... likely disabling overrides to allow FSO or vice versa)
+    # The batch comments say "Enabling Full Screen Optimizations", setting flags to 0 usually means "Use Default/Enabled" behavior or "Disable the Disable".
+    $gameConfig = "HKCU:\SYSTEM\GameConfigStore"
+    Set-RegistryValueSafe -Path $gameConfig -Name "GameDVR_DSEBehavior" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path $gameConfig -Name "GameDVR_FSEBehaviorMode" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path $gameConfig -Name "GameDVR_EFSEFeatureFlags" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path $gameConfig -Name "GameDVR_DXGIHonorFSEWindowsCompatible" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path $gameConfig -Name "GameDVR_HonorUserFSEBehaviorMode" -Value 1 -Type DWord
+
+    # 56. Enable MPO (Multiplane Overlay)
+    # Deleting OverlayTestMode enables MPO (if driver supports it)
+    Remove-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\Dwm" -Name "OverlayTestMode" -ErrorAction SilentlyContinue
+
+    # 57. Windowed Game Optimizations
+    Set-RegistryValueSafe -Path "HKCU:\SOFTWARE\Microsoft\DirectX\UserGpuPreferences" -Name "DirectXUserGlobalSettings" -Value "VRROptimizeEnable=0;SwapEffectUpgradeEnable=1;" -Type String
+
+    # 58. Latency Tolerance (MelodyTheNeko Tweaks)
+    Set-RegistryValueSafe -Path "HKLM:\SYSTEM\CurrentControlSet\Services\DXGKrnl" -Name "MonitorLatencyTolerance" -Value 1 -Type DWord
+    Set-RegistryValueSafe -Path "HKLM:\SYSTEM\CurrentControlSet\Services\DXGKrnl" -Name "MonitorRefreshLatencyTolerance" -Value 1 -Type DWord
+    
+    $powerControl = "HKLM:\SYSTEM\CurrentControlSet\Control\Power"
+    $latencyKeys = @("ExitLatency", "ExitLatencyCheckEnabled", "Latency", "LatencyToleranceDefault", "LatencyToleranceFSVP", "LatencyTolerancePerfOverride", "LatencyToleranceScreenOffIR", "LatencyToleranceVSyncEnabled", "RtlCapabilityCheckLatency")
+    foreach ($lk in $latencyKeys) { Set-RegistryValueSafe -Path $powerControl -Name $lk -Value 1 -Type DWord }
+    
+    $gfxPower = "HKLM:\SYSTEM\CurrentControlSet\Control\GraphicsDrivers\Power"
+    $gfxLatencyKeys = @(
+        "DefaultD3TransitionLatencyActivelyUsed", "DefaultD3TransitionLatencyIdleLongTime", "DefaultD3TransitionLatencyIdleMonitorOff",
+        "DefaultD3TransitionLatencyIdleNoContext", "DefaultD3TransitionLatencyIdleShortTime", "DefaultD3TransitionLatencyIdleVeryLongTime",
+        "DefaultLatencyToleranceIdle0", "DefaultLatencyToleranceIdle0MonitorOff", "DefaultLatencyToleranceIdle1", "DefaultLatencyToleranceIdle1MonitorOff",
+        "DefaultLatencyToleranceMemory", "DefaultLatencyToleranceNoContext", "DefaultLatencyToleranceNoContextMonitorOff", "DefaultLatencyToleranceOther",
+        "DefaultLatencyToleranceTimerPeriod", "DefaultMemoryRefreshLatencyToleranceActivelyUsed", "DefaultMemoryRefreshLatencyToleranceMonitorOff",
+        "DefaultMemoryRefreshLatencyToleranceNoContext", "Latency", "MaxIAverageGraphicsLatencyInOneBucket", "MiracastPerfTrackGraphicsLatency",
+        "MonitorLatencyTolerance", "MonitorRefreshLatencyTolerance", "TransitionLatency"
+    )
+    foreach ($glk in $gfxLatencyKeys) { Set-RegistryValueSafe -Path $gfxPower -Name $glk -Value 1 -Type DWord }
+
     # --- Service Disables (Expanded) ---
     $servicesToDisable = @(
         "XblAuthManager", "XblGameSave", "XboxNetApiSvc", "XboxGipSvc", # Xbox Services
