@@ -75,6 +75,23 @@ function Invoke-CpuOptimization {
     # 2 (Foreground shorter intervals) | 6 (Variable length)
     # Favors foreground processes (Games)
     Set-RegistryValueSafe -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\PriorityControl' -Name 'Win32PrioritySeparation' -Value 38 -Type DWord
+    
+    # 5. SvcHost Split Threshold (Ancel's Optimization)
+    # Allows more RAM to be used for separating services (Prevents service grouping)
+    # 380000 (Hex) = 3.5GB+ RAM
+    Set-RegistryValueSafe -Path 'HKLM:\SYSTEM\CurrentControlSet\Control' -Name 'SvcHostSplitThresholdInKB' -Value 3670016 -Type DWord # ~3.5GB
+    
+    # 6. Thread Priority Tweaks (SystemProfile)
+    # Forces high priority for gaming tasks
+    $sysProfile = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile"
+    Set-RegistryValueSafe -Path $sysProfile -Name "SystemResponsiveness" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path $sysProfile -Name "NetworkThrottlingIndex" -Value 0xFFFFFFFF -Type DWord
+    Set-RegistryValueSafe -Path $sysProfile -Name "NoLazyMode" -Value 1 -Type DWord
+    
+    # 7. Additional Kernel Tweaks
+    $sessionMgr = "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Kernel"
+    Set-RegistryValueSafe -Path $sessionMgr -Name "DisableExceptionChainValidation" -Value 1 -Type DWord
+    Set-RegistryValueSafe -Path $sessionMgr -Name "KernelSEHOPEnabled" -Value 0 -Type DWord # Warning: Security reduction for performance
 }
 
 Export-ModuleMember -Function Invoke-CpuOptimization
