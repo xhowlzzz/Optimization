@@ -38,6 +38,32 @@ function Invoke-PerformanceBatch {
     # netsh interface ip set dns "Ethernet" static 8.8.8.8 | Out-Null
     # netsh interface ip add dns "Ethernet" 8.8.4.4 index=2 | Out-Null
     
+    # Advanced per-interface Network Tweaks (Latency)
+    try {
+        $interfaces = Get-NetAdapter -Physical | Where-Object { $_.Status -eq 'Up' }
+        foreach ($nic in $interfaces) {
+            $guid = $nic.InterfaceGuid
+            $path = "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces\$guid"
+            
+            if (Test-Path $path) {
+                # TcpAckFrequency: 1 = Disable delayed ACK (Better for gaming ping)
+                Set-RegistryValueSafe -Path $path -Name "TcpAckFrequency" -Value 1 -Type DWord
+                # TCPNoDelay: 1 = Disable Nagle's algorithm (Better for gaming latency)
+                Set-RegistryValueSafe -Path $path -Name "TCPNoDelay" -Value 1 -Type DWord
+                # TcpDelAckTicks: 0 = No delay
+                Set-RegistryValueSafe -Path $path -Name "TcpDelAckTicks" -Value 0 -Type DWord
+            }
+        }
+    } catch {
+        Write-Log -Message "Failed to apply per-interface network tweaks: $_" -Level WARN -Component "BatchTweaks"
+    }
+
+    # --- File System (Advanced) ---
+    # Disable Paging File Encryption (Performance)
+    fsutil behavior set encryptpagingfile 0 | Out-Null
+    # Increase MFT Zone (Better for many small files)
+    fsutil behavior set mftzone 2 | Out-Null
+    
     # --- BCD Tweaks (Boot Configuration) ---
     # Disable Boot Screen Animation
     bcdedit /set bootux disabled | Out-Null
@@ -122,6 +148,9 @@ function Invoke-PerformanceBatch {
     
     # 16. Visual Effects (Performance)
     Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects" -Name "VisualFXSetting" -Value 2 -Type DWord
+    
+    # 17. Power Throttling (Disable for everything)
+    Set-RegistryValueSafe -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Power\PowerThrottling" -Name "PowerThrottlingOff" -Value 1 -Type DWord
     
     # --- Service Disables (Expanded) ---
     $servicesToDisable = @(
