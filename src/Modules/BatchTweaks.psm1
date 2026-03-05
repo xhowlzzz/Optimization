@@ -4,11 +4,11 @@ if (Test-Path $regModule) {
     Import-Module $regModule -ErrorAction SilentlyContinue
 }
 
-function Invoke-AncelTweaks {
-    Write-Log -Message "Applying Ancel's Performance Tweaks..." -Level INFO -Component "BatchTweaks"
+function Invoke-PerformanceBatch {
+    Write-Log -Message "Applying Advanced Performance Tweaks..." -Level INFO -Component "BatchTweaks"
 
     # --- Power Settings ---
-    # Disable Hibernation (Already in Tweaks.psm1, reinforcing)
+    # Disable Hibernation
     powercfg -h off | Out-Null
     
     # --- Network Tweaks (TCP/IP) ---
@@ -25,6 +25,12 @@ function Invoke-AncelTweaks {
     # Netsh Int TCP Supplemental
     netsh int tcp set supplemental template=custom icw=10 | Out-Null
     
+    # Additional Network Tweaks (from reference)
+    netsh int ip set global taskoffload=enabled | Out-Null
+    netsh int ip set global neighborcachelimit=4096 | Out-Null
+    netsh int ip set global routecachelimit=4096 | Out-Null
+    netsh int ip set global sourceroutingbehavior=drop | Out-Null
+    
     # --- BCD Tweaks (Boot Configuration) ---
     # Disable Boot Screen Animation
     bcdedit /set bootux disabled | Out-Null
@@ -34,8 +40,10 @@ function Invoke-AncelTweaks {
     bcdedit /set bootmenupolicy Standard | Out-Null
     # Disable Quiet Boot
     bcdedit /set quietboot yes | Out-Null
+    # Disable Integrity Checks (Optional - allows unsigned drivers, use with caution)
+    # bcdedit /set nointegritychecks yes | Out-Null
     
-    # --- Registry Tweaks from Ancel's Batch ---
+    # --- Registry Tweaks ---
     
     # 1. System Responsiveness & Multimedia
     Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile" -Name "SystemResponsiveness" -Value 0 -Type DWord
@@ -54,10 +62,12 @@ function Invoke-AncelTweaks {
     $memKey = "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management"
     Set-RegistryValueSafe -Path $memKey -Name "LargeSystemCache" -Value 1 -Type DWord # Favor system cache
     Set-RegistryValueSafe -Path $memKey -Name "DisablePagingExecutive" -Value 1 -Type DWord # Keep kernel in RAM
+    Set-RegistryValueSafe -Path $memKey -Name "IoPageLockLimit" -Value 983040 -Type DWord # Increase I/O throughput
     
     # 4. Priority Control
     Set-RegistryValueSafe -Path "HKLM:\SYSTEM\CurrentControlSet\Control\PriorityControl" -Name "Win32PrioritySeparation" -Value 38 -Type DWord # 26 Hex
     Set-RegistryValueSafe -Path "HKLM:\SYSTEM\CurrentControlSet\Control\PriorityControl" -Name "IRQ8Priority" -Value 1 -Type DWord
+    Set-RegistryValueSafe -Path "HKLM:\SYSTEM\CurrentControlSet\Control\PriorityControl" -Name "DevicePriority" -Value 1 -Type DWord
     
     # 5. Explorer / Desktop
     Set-RegistryValueSafe -Path "HKCU:\Control Panel\Desktop" -Name "MenuShowDelay" -Value "0"
@@ -78,17 +88,38 @@ function Invoke-AncelTweaks {
     Set-RegistryValueSafe -Path "HKCU:\System\GameConfigStore" -Name "GameDVR_HonorUserFSEBehaviorMode" -Value 1 -Type DWord
     Set-RegistryValueSafe -Path "HKCU:\System\GameConfigStore" -Name "GameDVR_DXGIHonorFSEWindowsCompatible" -Value 1 -Type DWord
     
-    # 9. USB Polling (Attempt to set global if not per-device)
-    # Note: This is usually device specific, but setting global flags can help
-    # Ancel's script does specific device iterating, which we already have in Input.psm1
-    
     # 10. Disable Game Bar Presence Writer
     Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\Microsoft\WindowsRuntime\ActivatableClassId\Windows.Gaming.GameBar.PresenceServer.Internal.PresenceWriter" -Name "ActivationType" -Value 0 -Type DWord
     
-    # --- Service Disables (Specific to Ancel's list) ---
+    # 11. Mouse & Keyboard (Input Latency)
+    # Mouse
+    Set-RegistryValueSafe -Path "HKCU:\Control Panel\Mouse" -Name "MouseSpeed" -Value "0"
+    Set-RegistryValueSafe -Path "HKCU:\Control Panel\Mouse" -Name "MouseThreshold1" -Value "0"
+    Set-RegistryValueSafe -Path "HKCU:\Control Panel\Mouse" -Name "MouseThreshold2" -Value "0"
+    # Keyboard
+    Set-RegistryValueSafe -Path "HKCU:\Control Panel\Keyboard" -Name "KeyboardDelay" -Value "0"
+    Set-RegistryValueSafe -Path "HKCU:\Control Panel\Keyboard" -Name "KeyboardSpeed" -Value "31"
+    
+    # 12. USB Power (Global)
+    $usbKey = "HKLM:\SYSTEM\CurrentControlSet\Control\Power\PowerSettings\2a737441-1930-4402-8d77-b949f808694c\48e6b7a6-50f5-4782-a5d4-53bb8f07e226"
+    Set-RegistryValueSafe -Path $usbKey -Name "Attributes" -Value 2 -Type DWord # Expose in Power Options
+    
+    # 13. Disable Application Prelaunch
+    Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "DisableApplicationPrelaunch" -Value 1 -Type DWord
+    
+    # --- Service Disables (Expanded) ---
     $servicesToDisable = @(
-        "XblAuthManager", "XblGameSave", "XboxNetApiSvc", "XboxGipSvc", # Xbox Services (if not using Game Pass)
-        "DiagTrack", "dmwappushservice", "MapsBroker", "PcaSvc", "TrkWks", "WSearch", "WerSvc"
+        "XblAuthManager", "XblGameSave", "XboxNetApiSvc", "XboxGipSvc", # Xbox Services
+        "DiagTrack", "dmwappushservice", "MapsBroker", "PcaSvc", "TrkWks", "WSearch", "WerSvc",
+        "SysMain", # Superfetch
+        "Spooler", # Print Spooler (Optional: Warning - disables printing)
+        "WbioSrvc", # Biometric
+        "TouchKeyboardAndHandwritingPanelService", # TabletInputService
+        "RemoteRegistry",
+        "TermService", # Remote Desktop
+        "SensorService",
+        "SensorDataService",
+        "SensorService"
     )
     foreach ($svc in $servicesToDisable) {
         if (Get-Service -Name $svc -ErrorAction SilentlyContinue) {
@@ -100,6 +131,8 @@ function Invoke-AncelTweaks {
     # --- Scheduled Tasks (Maintenance) ---
     Disable-ScheduledTask -TaskPath "\Microsoft\Windows\Customer Experience Improvement Program\" -TaskName "*" -ErrorAction SilentlyContinue
     Disable-ScheduledTask -TaskPath "\Microsoft\Windows\Application Experience\" -TaskName "*" -ErrorAction SilentlyContinue
+    Disable-ScheduledTask -TaskPath "\Microsoft\Windows\Feedback\Siuf\" -TaskName "*" -ErrorAction SilentlyContinue
+    Disable-ScheduledTask -TaskPath "\Microsoft\Windows\Location\" -TaskName "*" -ErrorAction SilentlyContinue
 }
 
-Export-ModuleMember -Function Invoke-AncelTweaks
+Export-ModuleMember -Function Invoke-PerformanceBatch
