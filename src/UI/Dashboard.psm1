@@ -329,7 +329,7 @@ function Show-Dashboard {
             $modPath = Join-Path $PSScriptRoot "..\Modules"
             
             # Optimization: Only import if not already loaded to reduce I/O and parsing overhead
-            $modules = @("Network.psm1", "CPU.psm1", "GPU.psm1", "System.psm1", "Input.psm1")
+            $modules = @("Network.psm1", "CPU.psm1", "GPU.psm1", "System.psm1", "Input.psm1", "Tweaks.psm1")
             foreach ($m in $modules) {
                 $name = [System.IO.Path]::GetFileNameWithoutExtension($m)
                 # Check if command exists, as module name might not match file name perfectly in PS 5.1
@@ -344,6 +344,7 @@ function Show-Dashboard {
             Invoke-SystemDebloat
             Invoke-RemoveWindowsAI
             Invoke-InputOptimization
+            Invoke-AllTweaks
             
             $c.BtnRun.Content = "OPTIMIZATION COMPLETE"
             $c.BtnRun.Background = [System.Windows.Media.Brushes]::Green
