@@ -9,7 +9,7 @@
 
 .NOTES
     Author: Howl
-    Version: 2.0.3 (Debug)
+    Version: 2.0.4 (Stable)
     License: MIT
 #>
 
@@ -123,7 +123,14 @@ try {
     Import-Module (Join-Path $ModulePath "Benchmarks\Benchmark.psm1") -Force
     
     # Import UI
-    Import-Module (Join-Path $ModulePath "UI\Dashboard.ps1") -Force
+    # Note: Renamed to .psm1 to properly support Export-ModuleMember
+    $UiModule = Join-Path $ModulePath "UI\Dashboard.psm1"
+    if (Test-Path $UiModule) {
+        Import-Module $UiModule -Force
+    } else {
+        throw "UI Module not found at $UiModule"
+    }
+
     Write-Log "UI initialized." -Level INFO
 
     # Launch
