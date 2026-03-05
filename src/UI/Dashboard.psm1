@@ -13,8 +13,10 @@ function Show-Dashboard {
         $reader = New-Object System.Xml.XmlNodeReader($xaml)
         $window = [Windows.Markup.XamlReader]::Load($reader)
     } catch {
-        Write-Error "Failed to load UI: $($_.Exception.Message)"
-        Write-Warning "Ensure you are running on Windows 10/11 with .NET Framework 4.7.2+"
+        $errorMsg = "CRITICAL UI ERROR: Failed to load MainWindow.xaml.`n`nDetails: $($_.Exception.Message)`n`nTroubleshooting:`n1. Ensure .NET Framework 4.7.2+ is installed.`n2. Check for file corruption."
+        Write-Error $errorMsg
+        # We can use a MessageBox if available, otherwise just console error
+        if ([System.Windows.MessageBox]::Show($errorMsg, "Optimizer Load Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error) -eq 'OK') {}
         return
     }
 
@@ -212,7 +214,7 @@ function Show-Dashboard {
                 param($path)
                 function Write-Log { param($Message, $Level, $Component) Write-Output "[$Level] $Component : $Message" }
                 Import-Module $path
-                Update-Win11Tweaks -CurrentVersion "2.0.6"
+                Update-Win11Tweaks -CurrentVersion "2.0.7"
             } -ArgumentList $updatePath
         }
     }
