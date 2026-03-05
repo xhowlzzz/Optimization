@@ -9,31 +9,41 @@
 
 .NOTES
     Author: Howl
-    Version: 2.0.2
+    Version: 2.0.3 (Debug)
     License: MIT
 #>
 
-# Define Global Error Action to prevent silent closures
+# Global Trap for unhandled exceptions
+Trap {
+    Write-Host " [CRITICAL FAILURE] An unhandled exception occurred:" -ForegroundColor Red
+    Write-Host $_.Exception.Message -ForegroundColor Red
+    Write-Host $_.ScriptStackTrace -ForegroundColor DarkRed
+    Read-Host "Press Enter to exit..."
+    exit
+}
+
 $ErrorActionPreference = 'Stop'
 
-# 1. BOOTSTRAPPER LOGIC (Handle 'iwr | iex' scenario)
+# 1. BOOTSTRAPPER LOGIC
+# We detect if we are running in a temporary context (Bootstrapper) or the full repo context.
+# If $PSScriptRoot is empty (iex) or we are in the temp folder WITHOUT the src directory, we bootstrap.
 $IsWebExecution = ($null -eq $PSScriptRoot) -or ($PSScriptRoot -eq '')
-$ProjectRoot = if ($IsWebExecution) { "$env:TEMP\Win11Optimizer" } else { $PSScriptRoot }
-$ModulePath = Join-Path $ProjectRoot "src"
+$CurrentDir = if ($IsWebExecution) { Get-Location } else { $PSScriptRoot }
+$HasSrc = Test-Path (Join-Path $CurrentDir "src")
 
-if ($IsWebExecution -or -not (Test-Path $ModulePath)) {
+if ($IsWebExecution -or -not $HasSrc) {
     Write-Host " [BOOTSTRAPPER] Initializing Win11 Esports Optimizer..." -ForegroundColor Cyan
     
-    # Define installation paths
+    $InstallDir = "$env:TEMP\Win11Optimizer"
     $ZipPath = "$env:TEMP\Win11Optimizer_Repo.zip"
     $ExtractPath = "$env:TEMP\Win11Optimizer_Extract"
     
-    # Clean up previous runs
-    if (Test-Path $ProjectRoot) { Remove-Item $ProjectRoot -Recurse -Force -ErrorAction SilentlyContinue }
+    # Clean up
+    if (Test-Path $InstallDir) { Remove-Item $InstallDir -Recurse -Force -ErrorAction SilentlyContinue }
     if (Test-Path $ExtractPath) { Remove-Item $ExtractPath -Recurse -Force -ErrorAction SilentlyContinue }
     
     try {
-        Write-Host " [DOWNLOADING] Fetching latest version from GitHub..." -ForegroundColor Yellow
+        Write-Host " [DOWNLOADING] Fetching latest version..." -ForegroundColor Yellow
         $RepoUrl = "https://github.com/xhowlzzz/Optimization/archive/refs/heads/main.zip"
         [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
         Invoke-WebRequest -Uri $RepoUrl -OutFile $ZipPath -UseBasicParsing
@@ -41,100 +51,87 @@ if ($IsWebExecution -or -not (Test-Path $ModulePath)) {
         Write-Host " [EXTRACTING] Unpacking modules..." -ForegroundColor Yellow
         Expand-Archive -Path $ZipPath -DestinationPath $ExtractPath -Force
         
-        # Move inner folder content to target ProjectRoot
-        # GitHub zips usually extract to 'Optimization-main'
-        $SourceDir = Get-ChildItem -Path $ExtractPath -Directory | Select-Object -First 1
-        if (-not $SourceDir) { throw "Failed to extract repository structure." }
+        # Locate the inner root folder (e.g., Optimization-main)
+        $InnerFolder = Get-ChildItem -Path $ExtractPath -Directory | Select-Object -First 1
+        if (-not $InnerFolder) { throw "Extraction failed: No folder found in ZIP." }
         
-        Move-Item -Path "$($SourceDir.FullName)" -Destination $ProjectRoot -Force
+        # Move to InstallDir
+        Move-Item -Path $InnerFolder.FullName -Destination $InstallDir -Force
         
-        # Relaunch the script from disk to get proper $PSScriptRoot context
-        $LocalScriptPath = Join-Path $ProjectRoot "Win11-EsportsTweaks.ps1"
-        
-        if (-not (Test-Path $LocalScriptPath)) { throw "Main script not found after extraction at $LocalScriptPath" }
+        $LauncherScript = Join-Path $InstallDir "Win11-EsportsTweaks.ps1"
+        if (-not (Test-Path $LauncherScript)) { throw "Launcher script missing at $LauncherScript" }
 
-        Write-Host " [LAUNCHING] Starting Dashboard..." -ForegroundColor Green
+        Write-Host " [LAUNCHING] Starting Dashboard in new window..." -ForegroundColor Green
         
-        # Start new process and WAIT for it, keeping the window open if it fails
+        # Launch the downloaded script in a new PowerShell window
+        # -NoExit ensures the window stays open if it crashes
+        # -WindowStyle Normal ensures it's visible
         $psi = New-Object System.Diagnostics.ProcessStartInfo
         $psi.FileName = "powershell.exe"
-        $psi.Arguments = "-NoExit -NoProfile -ExecutionPolicy Bypass -File `"$LocalScriptPath`""
-        $psi.Verb = "runas"
+        $psi.Arguments = "-NoExit -ExecutionPolicy Bypass -File `"$LauncherScript`""
+        $psi.Verb = "runas" # Request Admin
         $psi.UseShellExecute = $true
-        [System.Diagnostics.Process]::Start($psi)
+        [System.Diagnostics.Process]::Start($psi) | Out-Null
         
+        Write-Host "Dashboard launched. You can close this window." -ForegroundColor Gray
+        Read-Host "Press Enter to exit..."
         exit
+
     } catch {
-        Write-Error "Bootstrapping failed: $($_.Exception.Message)"
-        Write-Host "Please download the release ZIP manually from GitHub."
+        Write-Host " [ERROR] Bootstrapping failed!" -ForegroundColor Red
+        Write-Host $_.Exception.Message -ForegroundColor Red
         Read-Host "Press Enter to exit..."
         exit
     }
 }
 
-# 2. LAUNCHER LOGIC (Running locally with full file structure)
+# 2. LAUNCHER LOGIC
+# This runs when the script is executed from the InstallDir (with src/ present)
 
-# Ensure Execution Policy
-if ((Get-ExecutionPolicy) -ne 'Unrestricted' -and (Get-ExecutionPolicy) -ne 'Bypass') {
-    Write-Warning "Execution Policy is restricted. Attempting to bypass..."
-    $psi = New-Object System.Diagnostics.ProcessStartInfo
-    $psi.FileName = "powershell.exe"
-    $psi.Arguments = "-NoExit -NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`""
-    $psi.Verb = "runas"
-    [System.Diagnostics.Process]::Start($psi)
-    exit
-}
+$ModulePath = Join-Path $PSScriptRoot "src"
 
 try {
-    # Verify Modules Exist
-    if (-not (Test-Path $ModulePath)) { throw "Module directory not found at $ModulePath" }
+    # Self-Elevation Check (Redundant if Bootstrapper used runas, but good for manual runs)
+    if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltinRole]::Administrator)) {
+        Write-Warning "Elevation required. Relaunching..."
+        $psi = New-Object System.Diagnostics.ProcessStartInfo
+        $psi.FileName = "powershell.exe"
+        $psi.Arguments = "-NoExit -ExecutionPolicy Bypass -File `"$PSCommandPath`""
+        $psi.Verb = "runas"
+        [System.Diagnostics.Process]::Start($psi) | Out-Null
+        exit
+    }
+
+    Write-Host " [LOADER] Loading Win11 Esports Optimizer..." -ForegroundColor Cyan
+
+    # Verify Structure
+    if (-not (Test-Path $ModulePath)) { throw "Corrupt installation: 'src' folder missing." }
 
     # Import Core
-    Write-Host "Loading Core Modules..." -ForegroundColor Cyan
-    $CoreModules = @("Logger.psm1", "Config.psm1", "Security.psm1", "Registry.psm1", "Update.psm1")
-    foreach ($mod in $CoreModules) {
-        $path = Join-Path $ModulePath "Core\$mod"
-        if (Test-Path $path) { Import-Module $path -Force } else { Write-Warning "Missing Core Module: $mod" }
-    }
+    $Core = @("Logger.psm1", "Config.psm1", "Security.psm1", "Registry.psm1", "Update.psm1")
+    foreach ($m in $Core) { Import-Module (Join-Path $ModulePath "Core\$m") -Force }
 
-    # Initialize Logger
     Initialize-Logger -LogPath (Join-Path ([Environment]::GetFolderPath("Desktop")) "Win11Optimizer.log")
+    Write-Log "Core initialized." -Level INFO
 
-    # Check Admin
-    Ensure-RunningAsAdministrator
-
-    # Import Feature Modules
-    Write-Log "Loading Feature Modules..." -Level INFO
-    $FeatureModules = @("Network.psm1", "CPU.psm1", "GPU.psm1", "System.psm1", "Input.psm1")
-    foreach ($mod in $FeatureModules) {
-        $path = Join-Path $ModulePath "Modules\$mod"
-        if (Test-Path $path) { Import-Module $path -Force } else { Write-Log "Missing Feature Module: $mod" -Level WARN }
-    }
+    # Import Modules
+    $Modules = @("Network.psm1", "CPU.psm1", "GPU.psm1", "System.psm1", "Input.psm1")
+    foreach ($m in $Modules) { Import-Module (Join-Path $ModulePath "Modules\$m") -Force }
+    Write-Log "Feature modules loaded." -Level INFO
 
     # Import Benchmarks
-    Import-Module (Join-Path $ModulePath "Benchmarks\Benchmark.psm1") -Force -ErrorAction SilentlyContinue
-
+    Import-Module (Join-Path $ModulePath "Benchmarks\Benchmark.psm1") -Force
+    
     # Import UI
-    Write-Log "Initializing UI..." -Level INFO
-    $UiModule = Join-Path $ModulePath "UI\Dashboard.ps1"
-    if (Test-Path $UiModule) {
-        Import-Module $UiModule -Force
-    } else {
-        throw "UI Module not found at $UiModule"
-    }
+    Import-Module (Join-Path $ModulePath "UI\Dashboard.ps1") -Force
+    Write-Log "UI initialized." -Level INFO
 
-    # Check for Updates (Async)
-    Start-Job -ScriptBlock {
-        param($path)
-        Import-Module (Join-Path $path "Core\Update.psm1") -Force
-        Update-Win11Tweaks
-    } -ArgumentList $ModulePath | Out-Null
-
-    # Launch Dashboard
+    # Launch
     Show-Dashboard
 
 } catch {
-    Write-Host "CRITICAL ERROR: $($_.Exception.Message)" -ForegroundColor Red
-    Write-Host "Stack Trace: $($_.ScriptStackTrace)" -ForegroundColor Red
+    Write-Host " [CRITICAL ERROR] $($_.Exception.Message)" -ForegroundColor Red
+    Write-Host "Location: $($_.InvocationInfo.ScriptLineNumber)" -ForegroundColor Red
+    Write-Host $_.ScriptStackTrace -ForegroundColor DarkRed
     Read-Host "Press Enter to exit..."
 }
