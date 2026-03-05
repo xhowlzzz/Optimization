@@ -74,7 +74,10 @@ function Invoke-SystemDebloat {
         "WerSvc",              # Windows Error Reporting
         "PcaSvc",              # Program Compatibility Assistant
         "dps",                 # Diagnostic Policy Service
-        "WSearch"              # Windows Search (Optional, but often bloat for gamers)
+        "WSearch",             # Windows Search (Optional, but often bloat for gamers)
+        "RetailDemo",          # Retail Demo Service
+        "lfsvc",               # Geolocation Service
+        "WbioSrvc"             # Windows Biometric Service (Optional, remove if not using Hello)
     )
     foreach ($svc in $services) {
         if (Get-Service -Name $svc -ErrorAction SilentlyContinue) {
@@ -94,7 +97,9 @@ function Invoke-SystemDebloat {
         "\Microsoft\Windows\Customer Experience Improvement Program\UsbCeip",
         "\Microsoft\Windows\DiskDiagnostic\Microsoft-Windows-DiskDiagnosticDataCollector",
         "\Microsoft\Windows\Maintenance\WinSAT",
-        "\Microsoft\Windows\Power Efficiency Diagnostics\AnalyzeSystem"
+        "\Microsoft\Windows\Power Efficiency Diagnostics\AnalyzeSystem",
+        "\Microsoft\Windows\Maps\MapsUpdateTask",
+        "\Microsoft\Windows\Maps\MapsToastTask"
     )
     foreach ($taskPath in $tasks) {
         Get-ScheduledTask -TaskPath $taskPath -ErrorAction SilentlyContinue | Unregister-ScheduledTask -Confirm:$false -ErrorAction SilentlyContinue
@@ -102,7 +107,7 @@ function Invoke-SystemDebloat {
     }
     
     # 3. Remove Bloatware Appx Packages
-    # Safe list for most users/gamers
+    # Extensive list for "Gamer OS" feel
     $bloatware = @(
         "Microsoft.3DBuilder",
         "Microsoft.BingFinance",
@@ -124,20 +129,56 @@ function Invoke-SystemDebloat {
         "Microsoft.YourPhone",
         "Microsoft.ZuneMusic",
         "Microsoft.ZuneVideo",
-        "Microsoft.Xbox.TCUI", # Xbox Game Bar UI (Keep XboxApp for store games)
+        "Microsoft.Xbox.TCUI", 
         "Microsoft.XboxGameOverlay",
         "Microsoft.XboxGamingOverlay",
         "Microsoft.XboxSpeechToTextOverlay",
         "Microsoft.GamingApp",
         "Microsoft.OutlookForWindows",
-        "Microsoft.DevHome"
+        "Microsoft.DevHome",
+        "Microsoft.549981C3F5F10", # Cortana
+        "Microsoft.Todos",
+        "Microsoft.PowerAutomateDesktop",
+        "Clipchamp.Clipchamp",
+        "Microsoft.WindowsCamera",
+        "Microsoft.Windows.Photos",
+        "Microsoft.Paint",
+        "Microsoft.ScreenSketch", # Snip & Sketch
+        "Microsoft.MicrosoftStickyNotes",
+        "Microsoft.WindowsCalculator",
+        "Microsoft.WindowsTerminal", # Optional: Some users prefer cmd
+        # Third Party / Sponsored
+        "Disney",
+        "Netflix",
+        "Spotify",
+        "Instagram",
+        "TikTok",
+        "Facebook",
+        "Twitter",
+        "LinkedIn",
+        "Pandora",
+        "Amazon",
+        "eBay",
+        "Booking",
+        "AdobeLightroom",
+        "DolbyAccess",
+        "Duolingo",
+        "Fitbit",
+        "Flipboard",
+        "PhotoshopExpress",
+        "PicsArt",
+        "PrimeVideo",
+        "Shazam",
+        "TuneInRadio",
+        "Uber",
+        "Wunderlist"
     )
 
     foreach ($app in $bloatware) {
         # Remove for current user and all users
-        Get-AppxPackage -Name $app -AllUsers -ErrorAction SilentlyContinue | Remove-AppxPackage -AllUsers -ErrorAction SilentlyContinue
+        Get-AppxPackage -Name "*$app*" -AllUsers -ErrorAction SilentlyContinue | Remove-AppxPackage -AllUsers -ErrorAction SilentlyContinue
         # Remove from provisioning (so it doesn't come back for new users)
-        Get-AppxProvisionedPackage -Online | Where-Object { $_.DisplayName -eq $app } | Remove-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue
+        Get-AppxProvisionedPackage -Online | Where-Object { $_.DisplayName -like "*$app*" } | Remove-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue
         Write-Log -Message "Removed Bloatware: $app" -Level SUCCESS -Component "System"
     }
 
