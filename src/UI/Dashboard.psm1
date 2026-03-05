@@ -236,24 +236,61 @@ function Show-Dashboard {
     }
 
     # Metrics Timer
+    # Optimization: Use PerformanceCounters instead of CIM/WMI for sub-millisecond updates
+    try {
+        $cpuCounter = New-Object System.Diagnostics.PerformanceCounter("Processor", "% Processor Time", "_Total")
+        $memCounter = New-Object System.Diagnostics.PerformanceCounter("Memory", "Available MBytes")
+        $null = $cpuCounter.NextValue() # First call is always 0
+        $useCounters = $true
+    } catch {
+        Write-Log -Message "Performance Counters unavailable. Falling back to CIM." -Level WARN -Component "UI"
+        $useCounters = $false
+    }
+    
+    # Cache static total memory (MB)
+    try {
+        $os = Get-CimInstance Win32_OperatingSystem
+        $totalMemMB = [math]::Round($os.TotalVisibleMemorySize / 1KB)
+        $totalMemGB = [math]::Round($totalMemMB / 1024, 1)
+    } catch {
+        $totalMemMB = 16384 # Fallback
+        $totalMemGB = 16
+    }
+
     $timer = New-Object System.Windows.Threading.DispatcherTimer
     $timer.Interval = [TimeSpan]::FromSeconds(1)
     $timer.Add_Tick({
         try {
-            # CPU
-            $cpu = Get-CimInstance Win32_Processor | Measure-Object -Property LoadPercentage -Average | Select-Object -ExpandProperty Average
-            $c.TxtCpuUsage.Text = "$cpu%"
-            $c.PbCpu.Value = $cpu
-            
-            # RAM
-            $mem = Get-CimInstance Win32_OperatingSystem
-            $used = $mem.TotalVisibleMemorySize - $mem.FreePhysicalMemory
-            $perc = [math]::Round(($used / $mem.TotalVisibleMemorySize) * 100)
-            $usedGB = [math]::Round($used / 1MB, 1)
-            
-            $c.TxtRamUsage.Text = "$perc%"
-            $c.PbRam.Value = $perc
-            $c.TxtRamDetails.Text = "$usedGB GB Used / $([math]::Round($mem.TotalVisibleMemorySize / 1MB, 1)) GB Total"
+            if ($useCounters) {
+                # CPU (Fast)
+                $cpuVal = $cpuCounter.NextValue()
+                $c.TxtCpuUsage.Text = "$([math]::Round($cpuVal))%"
+                $c.PbCpu.Value = $cpuVal
+                
+                # RAM (Fast)
+                $freeMB = $memCounter.NextValue()
+                $usedMB = $totalMemMB - $freeMB
+                $perc = [math]::Round(($usedMB / $totalMemMB) * 100)
+                $usedGB = [math]::Round($usedMB / 1024, 1)
+                
+                $c.TxtRamUsage.Text = "$perc%"
+                $c.PbRam.Value = $perc
+                $c.TxtRamDetails.Text = "$usedGB GB Used / $totalMemGB GB Total"
+            } else {
+                # Fallback to CIM (Slow)
+                $cpu = Get-CimInstance Win32_Processor | Measure-Object -Property LoadPercentage -Average | Select-Object -ExpandProperty Average
+                $c.TxtCpuUsage.Text = "$cpu%"
+                $c.PbCpu.Value = $cpu
+                
+                $mem = Get-CimInstance Win32_OperatingSystem
+                $used = $mem.TotalVisibleMemorySize - $mem.FreePhysicalMemory
+                $perc = [math]::Round(($used / $mem.TotalVisibleMemorySize) * 100)
+                $usedGB = [math]::Round($used / 1MB, 1)
+                
+                $c.TxtRamUsage.Text = "$perc%"
+                $c.PbRam.Value = $perc
+                $c.TxtRamDetails.Text = "$usedGB GB Used / $([math]::Round($mem.TotalVisibleMemorySize / 1MB, 1)) GB Total"
+            }
             
             # Check Update Job
             if ($updateJob -and $updateJob.State -ne 'Running') {
@@ -291,11 +328,14 @@ function Show-Dashboard {
             # Import Modules (Ensure paths are correct relative to PSScriptRoot)
             $modPath = Join-Path $PSScriptRoot "..\Modules"
             
-            Import-Module (Join-Path $modPath "Network.psm1") -Force
-            Import-Module (Join-Path $modPath "CPU.psm1") -Force
-            Import-Module (Join-Path $modPath "GPU.psm1") -Force
-            Import-Module (Join-Path $modPath "System.psm1") -Force
-            Import-Module (Join-Path $modPath "Input.psm1") -Force
+            # Optimization: Only import if not already loaded to reduce I/O and parsing overhead
+            $modules = @("Network.psm1", "CPU.psm1", "GPU.psm1", "System.psm1", "Input.psm1")
+            foreach ($m in $modules) {
+                $name = [System.IO.Path]::GetFileNameWithoutExtension($m)
+                # Check if command exists, as module name might not match file name perfectly in PS 5.1
+                # Or just use Import-Module without Force
+                Import-Module (Join-Path $modPath $m) -ErrorAction SilentlyContinue
+            }
 
             # Run Tweaks
             Invoke-NetworkOptimization
