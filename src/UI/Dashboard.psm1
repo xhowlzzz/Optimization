@@ -10,7 +10,7 @@ function Show-Dashboard {
         if (-not (Test-Path $xamlPath)) { throw "MainWindow.xaml not found at $xamlPath" }
         
         # File Integrity Check
-        $expectedHash = "9F68D2ED0E825B27C3FA1AFFDEFC138CFED58945CC47299D1A95691C965A8C06"
+        $expectedHash = "54EDAE5C0F96E646728F4072A22E8D3AFD6F523B2E64F76FD11A7B7651797CCF"
         $currentHash = (Get-FileHash $xamlPath -Algorithm SHA256).Hash
         if ($currentHash -ne $expectedHash) {
             Write-Log -Message "CORRUPT: MainWindow.xaml hash mismatch. Expected $expectedHash, got $currentHash" -Level WARN -Component "UI"
@@ -302,6 +302,7 @@ function Show-Dashboard {
             Invoke-CpuOptimization
             Invoke-GpuOptimization
             Invoke-SystemDebloat
+            Invoke-RemoveWindowsAI
             Invoke-InputOptimization
             
             $c.BtnRun.Content = "OPTIMIZATION COMPLETE"
