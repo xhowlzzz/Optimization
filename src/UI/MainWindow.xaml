@@ -27,10 +27,10 @@
             <Setter Property="Background" Value="#CC1e293b"/>
             <Setter Property="CornerRadius" Value="16"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="BorderBrush" Value="#334155"/>
+            <Setter Property="BorderBrush" Value="{StaticResource SurfaceLightBrush}"/>
             <Setter Property="Effect">
                 <Setter.Value>
-                    <DropShadowEffect BlurRadius="30" ShadowDepth="0" Opacity="0.25" Color="Black"/>
+                    <DropShadowEffect BlurRadius="30" ShadowDepth="10" Opacity="0.25" Color="Black"/>
                 </Setter.Value>
             </Setter>
         </Style>
