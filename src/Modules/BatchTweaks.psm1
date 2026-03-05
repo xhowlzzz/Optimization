@@ -263,6 +263,114 @@ function Invoke-PerformanceBatch {
     Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer" -Name "SmartScreenEnabled" -Value "Off" -Type String
     Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\System" -Name "EnableSmartScreen" -Value 0 -Type DWord
     
+    # 34. Kernel Mitigation Options (Sub Mitigations)
+    # Binary value: 22...22 (Disables various kernel mitigations)
+    Set-RegistryValueSafe -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\kernel" -Name "MitigationOptions" -Value ([byte[]](0x22,0x22,0x22,0x22,0x22,0x22,0x22,0x22,0x22,0x22,0x22,0x22,0x22,0x22,0x22,0x22,0x22,0x22,0x22,0x22,0x22,0x22,0x22,0x22)) -Type Binary
+
+    # 35. Disable Memory Compression & Page Combining
+    Disable-MMAgent -MemoryCompression -ErrorAction SilentlyContinue | Out-Null
+    Disable-MMAgent -PageCombining -ErrorAction SilentlyContinue | Out-Null
+
+    # 36. Advanced Memory Management
+    Set-RegistryValueSafe -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name "LargeSystemCache" -Value 1 -Type DWord
+    Set-RegistryValueSafe -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name "DisablePagingExecutive" -Value 1 -Type DWord
+    # Force contiguous memory allocation in DirectX Graphics Kernel
+    Set-RegistryValueSafe -Path "HKLM:\SYSTEM\CurrentControlSet\Control\GraphicsDrivers" -Name "DpiMapIommuContiguous" -Value 1 -Type DWord
+    # Disable ASLR (Address Space Layout Randomization) for Images
+    Set-RegistryValueSafe -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name "MoveImages" -Value 0 -Type DWord
+
+    # 37. Disable DEP (Data Execution Prevention) for IE/Legacy
+    Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\Policies\Microsoft\Internet Explorer\Main" -Name "DEPOff" -Value 1 -Type DWord
+
+    # 38. Disable Automatic Maintenance
+    Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Schedule\Maintenance" -Name "MaintenanceDisabled" -Value 1 -Type DWord
+
+    # 39. Disable Fault Tolerant Heap (FTH)
+    Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\Microsoft\FTH" -Name "Enabled" -Value 0 -Type DWord
+
+    # 40. Advanced Power Throttling Disables
+    $powerKeys = @(
+        "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager",
+        "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Power",
+        "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management",
+        "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\kernel",
+        "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Executive",
+        "HKLM:\SYSTEM\CurrentControlSet\Control\Power\ModernSleep",
+        "HKLM:\SYSTEM\CurrentControlSet\Control\Power"
+    )
+    foreach ($k in $powerKeys) {
+        Set-RegistryValueSafe -Path $k -Name "CoalescingTimerInterval" -Value 0 -Type DWord
+    }
+    Set-RegistryValueSafe -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Power" -Name "PlatformAoAcOverride" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Power" -Name "EnergyEstimationEnabled" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Power" -Name "EventProcessorEnabled" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Power" -Name "CsEnabled" -Value 0 -Type DWord # Connected Standby
+
+    # 41. Kernel Timer Distribution
+    Set-RegistryValueSafe -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\kernel" -Name "DistributeTimers" -Value 1 -Type DWord
+
+    # 42. Game Mode & Game Bar (Reinforced)
+    Set-RegistryValueSafe -Path "HKCU:\SOFTWARE\Microsoft\GameBar" -Name "AllowAutoGameMode" -Value 1 -Type DWord
+    Set-RegistryValueSafe -Path "HKCU:\SOFTWARE\Microsoft\GameBar" -Name "AutoGameModeEnabled" -Value 1 -Type DWord
+    Set-RegistryValueSafe -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\GameDVR" -Name "AppCaptureEnabled" -Value 1 -Type DWord # Ancel enables this? Often disabled for perf. Following user request.
+    Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\Microsoft\WindowsRuntime\ActivatableClassId\Windows.Gaming.GameBar.PresenceServer.Internal.PresenceWriter" -Name "ActivationType" -Value 1 -Type DWord
+
+    # 43. Disable GPU Energy Driver & Logging
+    Set-RegistryValueSafe -Path "HKLM:\SYSTEM\CurrentControlSet\Services\GpuEnergyDrv" -Name "Start" -Value 4 -Type DWord
+    Set-RegistryValueSafe -Path "HKLM:\SYSTEM\CurrentControlSet\Services\GpuEnergyDr" -Name "Start" -Value 4 -Type DWord
+    $energyLog = "HKLM:\SYSTEM\CurrentControlSet\Control\Power\EnergyEstimation\TaggedEnergy"
+    Set-RegistryValueSafe -Path $energyLog -Name "DisableTaggedEnergyLogging" -Value 1 -Type DWord
+    Set-RegistryValueSafe -Path $energyLog -Name "TelemetryMaxApplication" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path $energyLog -Name "TelemetryMaxTagPerApplication" -Value 0 -Type DWord
+
+    # 44. Disable Windows Insider Experiments
+    Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\Microsoft\PolicyManager\current\device\System" -Name "AllowExperimentation" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\Microsoft\PolicyManager\default\System\AllowExperimentation" -Name "value" -Value 0 -Type DWord
+
+    # 45. Advanced MMCSS (Multimedia Class Scheduler)
+    $mmcss = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile"
+    Set-RegistryValueSafe -Path $mmcss -Name "NoLazyMode" -Value 1 -Type DWord
+    Set-RegistryValueSafe -Path $mmcss -Name "AlwaysOn" -Value 1 -Type DWord
+    Set-RegistryValueSafe -Path $mmcss -Name "SystemResponsiveness" -Value 10 -Type DWord # Ancel sets 10 (A bit looser than 0, maybe for stability?)
+    $mmcssGames = "$mmcss\Tasks\Games"
+    Set-RegistryValueSafe -Path $mmcssGames -Name "Latency Sensitive" -Value "True" -Type String
+
+    # 46. Reliability & IO Timestamp
+    $reliability = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Reliability"
+    Set-RegistryValueSafe -Path $reliability -Name "TimeStampInterval" -Value 1 -Type DWord
+    Set-RegistryValueSafe -Path $reliability -Name "IoPriority" -Value 3 -Type DWord
+
+    # 47. Disable Windows Remediation, Tips, Spotlight (Reinforced)
+    $contentDel = "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager"
+    Set-RegistryValueSafe -Path $contentDel -Name "RemediationRequired" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path $contentDel -Name "SoftLandingEnabled" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path $contentDel -Name "RotatingLockScreenOverlayEnabled" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path $contentDel -Name "PreInstalledAppsEnabled" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path $contentDel -Name "SilentInstalledAppsEnabled" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path $contentDel -Name "OemPreInstalledAppsEnabled" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path $contentDel -Name "ContentDeliveryAllowed" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path $contentDel -Name "SubscribedContentEnabled" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path $contentDel -Name "PreInstalledAppsEverEnabled" -Value 0 -Type DWord
+
+    # 48. Disable Search/Device History & Bing
+    Set-RegistryValueSafe -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Search" -Name "HistoryViewEnabled" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Search" -Name "DeviceHistoryEnabled" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Search" -Name "BingSearchEnabled" -Value 0 -Type DWord
+
+    # 49. Extensive Notification Disables
+    Set-RegistryValueSafe -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Notifications\Settings" -Name "NOC_GLOBAL_SETTING_ALLOW_NOTIFICATION_SOUND" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Notifications\Settings" -Name "NOC_GLOBAL_SETTING_ALLOW_CRITICAL_TOASTS_ABOVE_LOCK" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Notifications\Settings\QuietHours" -Name "Enabled" -Value 0 -Type DWord
+    
+    # 50. Bulk Capability Access Manager (Privacy)
+    $caps = @("activity", "appDiagnostics", "appointments", "bluetoothSync", "broadFileSystemAccess", "cellularData", "chat", "contacts", "documentsLibrary", "email", "gazeInput", "location", "phoneCall", "phoneCallHistory", "picturesLibrary", "radios", "userAccountInformation", "userDataTasks", "userNotificationListener", "videosLibrary")
+    foreach ($cap in $caps) {
+        Set-RegistryValueSafe -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\$cap" -Name "Value" -Value "Deny" -Type String
+    }
+    # Exceptions (Allow/Prompt)
+    Set-RegistryValueSafe -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\microphone" -Name "Value" -Value "Allow" -Type String
+    Set-RegistryValueSafe -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\webcam" -Name "Value" -Value "Allow" -Type String
+
     # --- Service Disables (Expanded) ---
     $servicesToDisable = @(
         "XblAuthManager", "XblGameSave", "XboxNetApiSvc", "XboxGipSvc", # Xbox Services
