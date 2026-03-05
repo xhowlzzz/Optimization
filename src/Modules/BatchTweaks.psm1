@@ -182,6 +182,27 @@ function Invoke-PerformanceBatch {
     # 22. Force Disable Transparency (Extreme Performance)
     Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" -Name "EnableTransparency" -Value 0 -Type DWord
     
+    # 23. DMA Remapping (Virtualization-Based Security overhead)
+    # Warning: Disables Memory Integrity (Core Isolation)
+    Set-RegistryValueSafe -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name "FeatureSettingsOverride" -Value 3 -Type DWord
+    Set-RegistryValueSafe -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name "FeatureSettingsOverrideMask" -Value 3 -Type DWord
+    Set-RegistryValueSafe -Path "HKLM:\SYSTEM\CurrentControlSet\Control\DeviceGuard\Scenarios\HypervisorEnforcedCodeIntegrity" -Name "Enabled" -Value 0 -Type DWord
+
+    # 24. MMCSS Optimization (Gaming Profile)
+    # Forces Windows to prioritize game threads over background multimedia
+    $mmcssGames = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\Games"
+    Set-RegistryValueSafe -Path $mmcssGames -Name "Affinity" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path $mmcssGames -Name "Background Only" -Value "False" -Type String
+    Set-RegistryValueSafe -Path $mmcssGames -Name "Clock Rate" -Value 10000 -Type DWord
+    Set-RegistryValueSafe -Path $mmcssGames -Name "GPU Priority" -Value 8 -Type DWord
+    Set-RegistryValueSafe -Path $mmcssGames -Name "Priority" -Value 6 -Type DWord
+    Set-RegistryValueSafe -Path $mmcssGames -Name "Scheduling Category" -Value "High" -Type String
+    Set-RegistryValueSafe -Path $mmcssGames -Name "SFIO Priority" -Value "High" -Type String
+
+    # 25. Disable USB Selective Suspend (Global)
+    # Prevents USB devices (mouse/keyboard/headset) from disconnecting or lagging
+    Set-RegistryValueSafe -Path "HKLM:\SYSTEM\CurrentControlSet\Services\USB" -Name "DisableSelectiveSuspend" -Value 1 -Type DWord
+    
     # --- Service Disables (Expanded) ---
     $servicesToDisable = @(
         "XblAuthManager", "XblGameSave", "XboxNetApiSvc", "XboxGipSvc", # Xbox Services
