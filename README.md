@@ -109,14 +109,6 @@ Distributed under the MIT License. See `LICENSE` for more information.
 
 ---
 
-## ðŸ‘ Credits
-
-*   **xhowlzzz**: Core Developer & Maintainer
-*   **Ancel**: Advanced Registry & Batch Tweaks
-*   **MelodyTheNeko**: Latency Tolerance Research
-
----
-
 <div align="center">
   <sub>Built with â¤ï¸ for the Windows Community</sub>
 </div>
