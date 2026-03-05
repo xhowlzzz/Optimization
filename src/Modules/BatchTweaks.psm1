@@ -128,6 +128,22 @@ function Invoke-PerformanceBatch {
     Set-RegistryValueSafe -Path "HKLM:\SYSTEM\CurrentControlSet\Control\GraphicsDrivers" -Name "PlatformSupportMiracast" -Value 0 -Type DWord
     Set-RegistryValueSafe -Path "HKLM:\SYSTEM\CurrentControlSet\Control\GraphicsDrivers\Scheduler" -Name "EnablePreemption" -Value 0 -Type DWord
     
+    # NVIDIA Specific (Ancel's Batch)
+    # Disable Telemetry & Ansel
+    Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\NVIDIA Corporation\Global\FTS" -Name "EnableRID44231" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\NVIDIA Corporation\Global\FTS" -Name "EnableRID64640" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\NVIDIA Corporation\Global\FTS" -Name "EnableRID66610" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\NVIDIA Corporation\Global\Ansel" -Name "EnableAnsel" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path "HKLM:\SYSTEM\CurrentControlSet\Services\NvTelemetryContainer" -Name "Start" -Value 4 -Type DWord
+    
+    # NVIDIA Power Management & Preemption
+    Set-RegistryValueSafe -Path "HKLM:\SYSTEM\CurrentControlSet\Control\GraphicsDrivers\Power" -Name "DefaultD3TransitionLatency" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path "HKLM:\SYSTEM\CurrentControlSet\Control\GraphicsDrivers\Power" -Name "DefaultLatencyTolerance" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path "HKLM:\SYSTEM\CurrentControlSet\Control\GraphicsDrivers\Power" -Name "DefaultPowerManagementMode" -Value 1 -Type DWord # Max Performance
+    
+    # Disable Driver Searching
+    Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\DriverSearching" -Name "SearchOrderConfig" -Value 0 -Type DWord
+    
     # 8. Disable Fullscreen Optimizations (Global)
     Set-RegistryValueSafe -Path "HKCU:\System\GameConfigStore" -Name "GameDVR_FSEBehaviorMode" -Value 2 -Type DWord
     Set-RegistryValueSafe -Path "HKCU:\System\GameConfigStore" -Name "GameDVR_HonorUserFSEBehaviorMode" -Value 1 -Type DWord
