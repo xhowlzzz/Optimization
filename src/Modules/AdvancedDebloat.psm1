@@ -189,7 +189,6 @@ function Invoke-AdvancedDebloat {
     # Note: System.psm1 already handles a massive list of Appx packages.
     # Adding a few more obscure ones found in deep debloat scripts.
     $obscureBloat = @(
-        "Microsoft.Windows.ParentalControls",
         "Microsoft.Windows.PeopleExperienceHost",
         "Microsoft.Windows.ContentDeliveryManager", # Aggressive: Breaks Spotlight/Lock Screen images
         "Microsoft.Windows.SecureAssessmentBrowser",
