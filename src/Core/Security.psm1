@@ -4,7 +4,7 @@ function Test-IsAdministrator {
     return $principal.IsInRole([Security.Principal.WindowsBuiltinRole]::Administrator)
 }
 
-function Ensure-RunningAsAdministrator {
+function Assert-AdministratorPrivileges {
     if (-not (Test-IsAdministrator)) {
         Write-Warning "Elevation required. Relaunching..."
         $psi = New-Object System.Diagnostics.ProcessStartInfo
@@ -33,4 +33,4 @@ function New-SystemRestorePoint {
     }
 }
 
-Export-ModuleMember -Function Test-IsAdministrator, Ensure-RunningAsAdministrator, New-SystemRestorePoint
+Export-ModuleMember -Function Test-IsAdministrator, Assert-AdministratorPrivileges, New-SystemRestorePoint
