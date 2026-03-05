@@ -1,0 +1,52 @@
+name: Build and Release
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Run PSScriptAnalyzer
+      shell: powershell
+      run: |
+        Invoke-ScriptAnalyzer -Path .\src -Recurse -Severity Error
+
+    - name: Run Pester Tests
+      shell: powershell
+      run: |
+        Invoke-Pester -Path .\tests -PassThru
+
+    - name: Create Release Zip
+      shell: powershell
+      run: |
+        Compress-Archive -Path .\src, .\Win11-EsportsTweaks.ps1, .\README.md -DestinationPath Win11-EsportsTweaks.zip
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: Win11-EsportsTweaks
+        path: Win11-EsportsTweaks.zip
+
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/download-artifact@v3
+        with:
+          name: Win11-EsportsTweaks
+      
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: Win11-EsportsTweaks.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
