@@ -1,6 +1,6 @@
-# Win11 Esports Optimizer Pro
+# IlumnulOS Optimizer
 
-![Win11-EsportsTweaks UI](assets/preview.svg)
+![IlumnulOS Logo](assets/logo.png)
 
 **The definitive, professional-grade Windows 11 optimization suite for competitive gaming.**
 
@@ -11,9 +11,9 @@
 
 ---
 
-## 🚀 Why Choose Win11 Optimizer Pro?
+## 🚀 Why Choose IlumnulOS?
 
-This isn't just another batch script. Win11 Optimizer Pro is a **commercial-grade, modular PowerShell framework** designed to strip Windows 11 down to its bare essentials for maximum frame rates and the lowest possible input latency.
+This isn't just another batch script. IlumnulOS is a **commercial-grade, modular PowerShell framework** designed to strip Windows 11 down to its bare essentials for maximum frame rates and the lowest possible input latency.
 
 Trusted by competitive players and system tuners for:
 - **Zero Bloat**: Removes telemetry, pre-installed apps, and background services.
@@ -37,13 +37,13 @@ Trusted by competitive players and system tuners for:
 ### Method 1: One-Click Run (Recommended)
 Open PowerShell as Administrator and run:
 ```powershell
-iwr -useb https://raw.githubusercontent.com/xhowlzzz/Optimization/main/Win11-EsportsTweaks.ps1 | iex
+iwr -useb https://raw.githubusercontent.com/xhowlzzz/Optimization/main/IlumnulOS.ps1 | iex
 ```
 
 ### Method 2: Manual Install
 1. Download the latest release from the [Releases](https://github.com/xhowlzzz/Optimization/releases) page.
 2. Extract the ZIP file.
-3. Right-click `Win11-EsportsTweaks.ps1` and select **Run with PowerShell**.
+3. Right-click `IlumnulOS.ps1` and select **Run with PowerShell**.
 
 ## 🖥️ The Dashboard
 
@@ -51,7 +51,7 @@ The new WPF-based dashboard provides a centralized hub for all optimizations.
 
 - **Dashboard**: View real-time system metrics and run the one-click optimization.
 - **Tweaks**: Toggle individual modules (Network, CPU, GPU, etc.).
-- **Benchmarks**: Measure system latency and disk speed (Coming Soon).
+- **Benchmarks**: Measure system latency and disk speed.
 - **Logs**: View detailed execution logs for troubleshooting.
 
 ## 🛡️ Safety & Security
