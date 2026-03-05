@@ -1098,7 +1098,7 @@ function Invoke-UiTweaks {
     [CmdletBinding()]
     param()
     Write-Log -Message 'Applying UI Tweaks...' -Level INFO
-    Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\Software\Classes\CLSID\{86ca1aa0-34aa-4e8b-a509-50c905bae2a2}\InprocServer32' -Name '' -Value '' -Type ([Microsoft.Win32.RegistryValueKind]::String) -Description 'Restore classic context menu'
+    Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\Software\Classes\CLSID\{86ca1aa0-34aa-4e8b-a509-50c905bae2a2}\InprocServer32' -Name '(Default)' -Value '' -Type ([Microsoft.Win32.RegistryValueKind]::String) -Description 'Restore classic context menu'
     Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced' -Name 'TaskbarAl' -Value 0 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Left-align taskbar'
     Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced' -Name 'EnableSnapBar' -Value 0 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Disable snap bar'
     Set-RegistryValueSafe -Path 'HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced' -Name 'EnableSnapAssistFlyout' -Value 0 -Type ([Microsoft.Win32.RegistryValueKind]::DWord) -Description 'Disable snap assist flyout'
