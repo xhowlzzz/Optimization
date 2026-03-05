@@ -196,6 +196,12 @@ function Invoke-UITweaks {
     
     # Menu Delay
     Set-RegistryValueSafe -Path "HKCU:\Control Panel\Desktop" -Name "MenuShowDelay" -Value "0"
+    
+    # New: Disable Shake to Minimize
+    Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "DisallowShaking" -Value 1 -Type DWord
+    
+    # New: Disable Sync Provider Notifications
+    Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "ShowSyncProviderNotifications" -Value 0 -Type DWord
 }
 
 function Invoke-SystemTweaks {
@@ -241,6 +247,10 @@ function Invoke-SystemTweaks {
     Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer" -Name "MaxCachedIcons" -Value "4096"
     Set-RegistryValueSafe -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name "LongPathsEnabled" -Value 1 -Type DWord
     
+    # New: Prefetch/Superfetch (SSD Optimization)
+    Set-RegistryValueSafe -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management\PrefetchParameters" -Name "EnablePrefetcher" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management\PrefetchParameters" -Name "EnableSuperfetch" -Value 0 -Type DWord
+    
     # Power
     Set-RegistryValueSafe -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Power" -Name "HibernateEnabled" -Value 0 -Type DWord
     Set-RegistryValueSafe -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Power" -Name "SleepStudyDisabled" -Value 1 -Type DWord
@@ -284,6 +294,21 @@ function Invoke-SystemTweaks {
     # Disable Magnifier & Narrator
     Set-RegistryValueSafe -Path "HKCU:\SOFTWARE\Microsoft\ScreenMagnifier" -Name "FollowMouse" -Value 0 -Type DWord
     Set-RegistryValueSafe -Path "HKCU:\SOFTWARE\Microsoft\Narrator" -Name "ReadHints" -Value 0 -Type DWord
+    
+    # New: Input Tweaks (Accessibility Keys)
+    $stickyKeys = "HKCU:\Control Panel\Accessibility\StickyKeys"
+    Set-RegistryValueSafe -Path $stickyKeys -Name "Flags" -Value "506" -Type String
+    $keyboardResponse = "HKCU:\Control Panel\Accessibility\Keyboard Response"
+    Set-RegistryValueSafe -Path $keyboardResponse -Name "Flags" -Value "122" -Type String
+    $toggleKeys = "HKCU:\Control Panel\Accessibility\ToggleKeys"
+    Set-RegistryValueSafe -Path $toggleKeys -Name "Flags" -Value "58" -Type String
+    
+    # New: Network Tweaks (Supplemental)
+    $tcpParams = "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters"
+    Set-RegistryValueSafe -Path $tcpParams -Name "GlobalMaxTcpWindowSize" -Value 65535 -Type DWord
+    Set-RegistryValueSafe -Path $tcpParams -Name "TcpWindowSize" -Value 65535 -Type DWord
+    Set-RegistryValueSafe -Path $tcpParams -Name "MaxUserPort" -Value 65534 -Type DWord
+    Set-RegistryValueSafe -Path $tcpParams -Name "TcpTimedWaitDelay" -Value 30 -Type DWord
 }
 
 function Invoke-AllTweaks {
