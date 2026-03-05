@@ -9,7 +9,7 @@
 
 .NOTES
     Author: Howl
-    Version: 2.0.7 (Stable)
+    Version: 2.0.8 (Stable)
     License: MIT
 #>
 
@@ -91,6 +91,12 @@ if ($IsWebExecution -or -not $HasSrc) {
 $ModulePath = Join-Path $PSScriptRoot "src"
 
 try {
+    # .NET Framework Check (4.7.2+ required)
+    $net = Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\NET Framework Setup\NDP\v4\Full' -Name Release -ErrorAction SilentlyContinue
+    if (-not $net -or $net.Release -lt 461808) {
+        throw "Microsoft .NET Framework 4.7.2 or greater is required. Please update Windows."
+    }
+
     # Self-Elevation Check (Redundant if Bootstrapper used runas, but good for manual runs)
     if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltinRole]::Administrator)) {
         Write-Warning "Elevation required. Relaunching..."
@@ -113,6 +119,11 @@ try {
 
     Initialize-Logger -LogPath (Join-Path ([Environment]::GetFolderPath("Desktop")) "Win11Optimizer.log")
     Write-Log "Core initialized." -Level INFO
+    
+    # Troubleshooting Note:
+    # If XAML errors occur regarding 'LineHeight', ensure 'TextBox' uses 'Block.LineHeight' (Attached Property) 
+    # instead of the direct 'LineHeight' property, which only exists on 'TextBlock'.
+    Write-Log "XAML Schema: TextBox supports Block.LineHeight; TextBlock supports LineHeight." -Level DEBUG
 
     # Import Modules
     $Modules = @("Network.psm1", "CPU.psm1", "GPU.psm1", "System.psm1", "Input.psm1")
