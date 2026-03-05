@@ -570,11 +570,151 @@ function Invoke-PerformanceBatch {
     Set-RegistryValueSafe -Path $tdrKey -Name "TdrLimitTime" -Value 0 -Type DWord
     Set-RegistryValueSafe -Path $tdrKey -Name "TdrTestMode" -Value 0 -Type DWord
 
+    # 61. Massive Telemetry Disable (Ancel's List)
+    
+    # A. Scheduled Tasks
+    $telemetryTasks = @(
+        "\Microsoft\Windows\Customer Experience Improvement Program\Consolidator",
+        "\Microsoft\Windows\Customer Experience Improvement Program\BthSQM",
+        "\Microsoft\Windows\Customer Experience Improvement Program\KernelCeipTask",
+        "\Microsoft\Windows\Customer Experience Improvement Program\UsbCeip",
+        "\Microsoft\Windows\Customer Experience Improvement Program\Uploader",
+        "\Microsoft\Windows\Application Experience\Microsoft Compatibility Appraiser",
+        "\Microsoft\Windows\Application Experience\ProgramDataUpdater",
+        "\Microsoft\Windows\Application Experience\StartupAppTask",
+        "\Microsoft\Windows\DiskDiagnostic\Microsoft-Windows-DiskDiagnosticDataCollector",
+        "\Microsoft\Windows\DiskDiagnostic\Microsoft-Windows-DiskDiagnosticResolver",
+        "\Microsoft\Windows\Power Efficiency Diagnostics\AnalyzeSystem",
+        "\Microsoft\Windows\Shell\FamilySafetyMonitor",
+        "\Microsoft\Windows\Shell\FamilySafetyRefresh",
+        "\Microsoft\Windows\Shell\FamilySafetyUpload",
+        "\Microsoft\Windows\Autochk\Proxy",
+        "\Microsoft\Windows\Maintenance\WinSAT",
+        "\Microsoft\Windows\Application Experience\AitAgent",
+        "\Microsoft\Windows\Windows Error Reporting\QueueReporting",
+        "\Microsoft\Windows\CloudExperienceHost\CreateObjectTask",
+        "\Microsoft\Windows\DiskFootprint\Diagnostics",
+        "\Microsoft\Windows\FileHistory\File History (maintenance mode)",
+        "\Microsoft\Windows\PI\Sqm-Tasks",
+        "\Microsoft\Windows\NetTrace\GatherNetworkInfo",
+        "\Microsoft\Windows\AppID\SmartScreenSpecific",
+        "\Microsoft\Office\OfficeTelemetryAgentFallBack2016",
+        "\Microsoft\Office\OfficeTelemetryAgentLogOn2016",
+        "\Microsoft\Office\OfficeTelemetryAgentLogOn",
+        "\Microsoftd\Office\OfficeTelemetryAgentFallBack",
+        "\Microsoft\Office\Office 15 Subscription Heartbeat",
+        "\Microsoft\Windows\Time Synchronization\ForceSynchronizeTime",
+        "\Microsoft\Windows\Time Synchronization\SynchronizeTime",
+        "\Microsoft\Windows\WindowsUpdate\Automatic App Update",
+        "\Microsoft\Windows\Device Information\Device"
+    )
+    foreach ($task in $telemetryTasks) {
+        Disable-ScheduledTask -TaskName $task -ErrorAction SilentlyContinue | Out-Null
+    }
+
+    # B. Registry Telemetry Blocks
+    Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Device Metadata" -Name "PreventDeviceMetadataFromNetwork" -Value 1 -Type DWord
+    Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection" -Name "AllowTelemetry" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path "HKCU:\SOFTWARE\Microsoft\InputPersonalization" -Name "RestrictImplicitInkCollection" -Value 1 -Type DWord
+    Set-RegistryValueSafe -Path "HKCU:\SOFTWARE\Microsoft\InputPersonalization" -Name "RestrictImplicitTextCollection" -Value 1 -Type DWord
+    
+    # Sensors
+    $sensorGuid = "{BFA794E4-F964-4FDB-90F6-51056BFE4B44}"
+    Set-RegistryValueSafe -Path "HKCU:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Sensor\Permissions\$sensorGuid" -Name "SensorPermissionState" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Sensor\Overrides\$sensorGuid" -Name "SensorPermissionState" -Value 0 -Type DWord
+    
+    # WUDF Logging
+    Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\WUDF" -Name "LogEnable" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\WUDF" -Name "LogLevel" -Value 0 -Type DWord
+    
+    # Data Collection Policies
+    $dataColl = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection"
+    Set-RegistryValueSafe -Path $dataColl -Name "AllowTelemetry" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path $dataColl -Name "DoNotShowFeedbackNotifications" -Value 1 -Type DWord
+    Set-RegistryValueSafe -Path $dataColl -Name "AllowCommercialDataPipeline" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path $dataColl -Name "AllowDeviceNameInTelemetry" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path $dataColl -Name "LimitEnhancedDiagnosticDataWindowsAnalytics" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path $dataColl -Name "MicrosoftEdgeDataOptIn" -Value 0 -Type DWord
+    
+    # SIUF (Feedback)
+    Set-RegistryValueSafe -Path "HKCU:\SOFTWARE\Microsoft\Siuf\Rules" -Name "NumberOfSIUFInPeriod" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path "HKCU:\SOFTWARE\Microsoft\Siuf\Rules" -Name "PeriodInNanoSeconds" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path "HKCU:\SOFTWARE\Policies\Microsoft\Assistance\Client\1.0" -Name "NoExplicitFeedback" -Value 1 -Type DWord
+    Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\Policies\Microsoft\Assistance\Client\1.0" -Name "NoActiveHelp" -Value 1 -Type DWord
+    
+    # AppCompat & Tablet
+    Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\AppCompat" -Name "DisableInventory" -Value 1 -Type DWord
+    Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\AppCompat" -Name "AITEnable" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\AppCompat" -Name "DisableUAR" -Value 1 -Type DWord
+    Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\TabletPC" -Name "PreventHandwritingDataSharing" -Value 1 -Type DWord
+    Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\TabletPC" -Name "DoSvc" -Value 3 -Type DWord
+    
+    # Location
+    $locSensors = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\LocationAndSensors"
+    Set-RegistryValueSafe -Path $locSensors -Name "DisableLocation" -Value 1 -Type DWord
+    Set-RegistryValueSafe -Path $locSensors -Name "DisableLocationScripting" -Value 1 -Type DWord
+    Set-RegistryValueSafe -Path $locSensors -Name "DisableSensors" -Value 1 -Type DWord
+    Set-RegistryValueSafe -Path $locSensors -Name "DisableWindowsLocationProvider" -Value 1 -Type DWord
+    
+    # Driver Reporting
+    Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\Policies\Microsoft\DeviceHealthAttestationService" -Name "DisableSendGenericDriverNotFoundToWER" -Value 1 -Type DWord
+    Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DeviceInstall\Settings" -Name "DisableSendGenericDriverNotFoundToWER" -Value 1 -Type DWord
+    Set-RegistryValueSafe -Path "HKLM:\SYSTEM\DriverDatabase\Policies\Settings" -Name "DisableSendGenericDriverNotFoundToWER" -Value 1 -Type DWord
+    
+    # Activity Feed
+    Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\System" -Name "PublishUserActivities" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\System" -Name "EnableActivityFeed" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\System" -Name "UploadUserActivities" -Value 0 -Type DWord
+    
+    # SQM & CEIP
+    Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\Policies\Microsoft\SQMClient\Windows" -Name "CEIPEnable" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\Microsoft\SQMClient\Reliability" -Name "CEIPEnable" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\Microsoft\SQMClient\Reliability" -Name "SqmLoggerRunning" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\Microsoft\SQMClient\Windows" -Name "CEIPEnable" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\Microsoft\SQMClient\Windows" -Name "DisableOptinExperience" -Value 1 -Type DWord
+    Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\Microsoft\SQMClient\Windows" -Name "SqmLoggerRunning" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\Microsoft\SQMClient\IE" -Name "SqmLoggerRunning" -Value 0 -Type DWord
+    
+    # Misc
+    Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\HandwritingErrorReports" -Name "PreventHandwritingErrorReports" -Value 1 -Type DWord
+    Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\FileHistory" -Name "Disabled" -Value 1 -Type DWord
+    Set-RegistryValueSafe -Path "HKCU:\SOFTWARE\Microsoft\MediaPlayer\Preferences" -Name "UsageTracking" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Explorer" -Name "NoUseStoreOpenWith" -Value 1 -Type DWord
+    Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\CloudContent" -Name "DisableSoftLanding" -Value 1 -Type DWord
+    Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\Policies\Microsoft\Peernet" -Name "Disabled" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\DeliveryOptimization\Config" -Name "DODownloadMode" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\Microsoft\PolicyManager\default\WiFi\AllowWiFiHotSpotReporting" -Name "value" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path "HKCU:\SOFTWARE\Microsoft\InputPersonalization\TrainedDataStore" -Name "HarvestContacts" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\AdvertisingInfo" -Name "Enabled" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\AdvertisingInfo" -Name "DisabledByGroupPolicy" -Value 1 -Type DWord
+    Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\Policies\Microsoft\MRT" -Name "DontOfferThroughWUAU" -Value 1 -Type DWord
+    Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\Policies\Microsoft\Biometrics" -Name "Enabled" -Value 0 -Type DWord
+    Set-RegistryValueSafe -Path "HKLM:\SYSTEM\CurrentControlSet\Services\dmwappushservice" -Name "Start" -Value 4 -Type DWord
+    Set-RegistryValueSafe -Path "HKCU:\Control Panel\International\User Profile" -Name "HttpAcceptLanguageOptOut" -Value 1 -Type DWord
+
+    # C. AutoLoggers (WMI Tracing)
+    $autoLoggers = @(
+        "AppModel", "Cellcore", "Circular Kernel Context Logger", "CloudExperienceHostOobe", "DataMarket",
+        "DefenderApiLogger", "DefenderAuditLogger", "DiagLog", "HolographicDevice", "iclsClient", "iclsProxy",
+        "LwtNetLog", "Mellanox-Kernel", "Microsoft-Windows-AssignedAccess-Trace", "Microsoft-Windows-Setup",
+        "NBSMBLOGGER", "PEAuthLog", "RdrLog", "ReadyBoot", "SetupPlatform", "SetupPlatformTel", "SocketHeciServer",
+        "SpoolerLogger", "SQMLogger", "TCPIPLOGGER", "TileStore", "Tpm", "TPMProvisioningService", "UBPM",
+        "WdiContextLog", "WFP-IPsec Trace", "WiFiDriverIHVSession", "WiFiDriverIHVSessionRepro", "WiFiSession",
+        "WinPhoneCritical"
+    )
+    foreach ($log in $autoLoggers) {
+        Set-RegistryValueSafe -Path "HKLM:\SYSTEM\CurrentControlSet\Control\WMI\Autologger\$log" -Name "Start" -Value 0 -Type DWord
+    }
+    Set-RegistryValueSafe -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Lsa\Credssp" -Name "DebugLogLevel" -Value 0 -Type DWord
+
     # --- Service Disables (Expanded) ---
     $servicesToDisable = @(
-        "XblAuthManager", "XblGameSave", "XboxNetApiSvc", "XboxGipSvc", # Xbox Services
-        "DiagTrack", "dmwappushservice", "MapsBroker", "PcaSvc", "TrkWks", "WSearch", "WerSvc",
+        "DiagTrack", # Connected User Experiences and Telemetry
+        "dmwappushservice", # WAP Push Message Routing Service
+        "diagnosticshub.standardcollector.service", # Microsoft (R) Diagnostics Hub Standard Collector Service
         "SysMain", # Superfetch
+        "MapsBroker",
+        "WSearch", # Windows Search (Optional: Add back if needed)
         "Spooler", # Print Spooler (Optional: Warning - disables printing)
         "WbioSrvc", # Biometric
         "TouchKeyboardAndHandwritingPanelService", # TabletInputService
