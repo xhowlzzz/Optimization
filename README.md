@@ -62,7 +62,9 @@ From deep registry hacks to kernel-level mitigations, Optimizare applies industr
 ## 📥 Installation
 
 1. Automatic
-```iwr -useb https://raw.githubusercontent.com/xhowlzzz/Optimization/main/IlumnulOS.ps1 | iex```
+```powershell
+iwr -useb https://raw.githubusercontent.com/xhowlzzz/Optimization/main/IlumnulOS.ps1 | iex
+```
 
 ---
 
